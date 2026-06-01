@@ -67,6 +67,57 @@
     }
     #restart-btn:hover  { background: #7dd3fc; }
     #restart-btn:active { transform: scale(0.96); }
+
+    /* ── Shop overlay ── */
+    #shop-overlay {
+      display: none; position: absolute; inset: 0;
+      background: rgba(10,12,18,0.96); border-radius: 4px;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 1.1rem; z-index: 20;
+    }
+    #shop-overlay.active { display: flex; }
+    #shop-overlay h2 { font-size: 1.7rem; font-weight: 700; letter-spacing: 0.05em; color: #fbbf24; }
+    #shop-overlay .shop-sub { font-size: 0.9rem; color: #6b7280; }
+    .shop-items { display: flex; gap: 1rem; }
+    .shop-item {
+      background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 1.1rem 1.4rem;
+      display: flex; flex-direction: column; align-items: center; gap: 0.55rem;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      min-width: 130px;
+    }
+    .shop-item:hover  { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
+    .shop-item:active { transform: scale(0.96); }
+    .shop-item.disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+    .shop-item .si-icon  { font-size: 2rem; }
+    .shop-item .si-name  { font-size: 0.9rem; color: #e8eaed; font-weight: 600; }
+    .shop-item .si-cost  { font-size: 0.82rem; color: #fbbf24; }
+    .shop-item .si-desc  { font-size: 0.75rem; color: #6b7280; text-align: center; }
+    #shop-skip { margin-top: 0.2rem; background: transparent; border: 1.5px solid #374151;
+      color: #6b7280; border-radius: 6px; padding: 0.45rem 1.6rem;
+      font-size: 0.88rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    #shop-skip:hover { border-color: #9aa0a6; color: #e8eaed; }
+
+    /* ── Timer bar ── */
+    #timer-wrap {
+      display: none; position: absolute; left: 0; right: 0; top: 0; height: 5px; z-index: 5;
+    }
+    #timer-wrap.active { display: block; }
+    #timer-bar { height: 100%; width: 100%; background: #38bdf8; transition: background 0.3s; border-radius: 0 0 2px 2px; }
+
+    /* ── Special level banner ── */
+    #level-banner {
+      display: none; position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+      background: rgba(10,12,18,0.88); border: 1.5px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 0.4rem 1.1rem; font-size: 0.88rem;
+      color: #e8eaed; letter-spacing: 0.03em; z-index: 6; white-space: nowrap;
+      pointer-events: none;
+    }
+    #level-banner.active { display: block; }
+
+    /* ── Shield pip in HUD ── */
+    #shield-pip { display: none; font-size: 1rem; }
+    #shield-pip.active { display: inline; }
   </style>
 </head>
 <body>
@@ -74,8 +125,10 @@
   <div class="hud">
     <span>Level<strong id="levelDisplay">1</strong></span>
     <span>Score<strong id="scoreDisplay">0</strong></span>
-    <span>Coins<strong id="coinsDisplay">0</strong></span>
+    <span>🪙<strong id="coinsDisplay">0</strong></span>
     <span id="biomeLabel">Space</span>
+    <span id="shield-pip">🛡</span>
+    <button id="skip-btn" title="Use skip token" style="display:none;background:rgba(251,191,36,0.15);border:1.5px solid #fbbf24;color:#fbbf24;border-radius:6px;padding:0.18rem 0.55rem;font-size:0.8rem;cursor:pointer;line-height:1.3;">⏭ Skip (<span id="skipCount">0</span>)</button>
     <span class="lives">
       <span class="heart" id="h1">❤️</span>
       <span class="heart" id="h2">❤️</span>
@@ -85,6 +138,27 @@
 
   <div id="canvas-wrap">
     <canvas id="game" width="1100" height="540" aria-label="Platformer game"></canvas>
+    <div id="timer-wrap"><div id="timer-bar"></div></div>
+    <div id="level-banner"></div>
+    <div id="shop-overlay">
+      <h2>🏪 Shop</h2>
+      <p class="shop-sub" id="shop-coins-label">You have 0 coins</p>
+      <div class="shop-items">
+        <div class="shop-item" id="shop-life">
+          <span class="si-icon">❤️</span>
+          <span class="si-name">Extra Life</span>
+          <span class="si-cost">5 coins</span>
+          <span class="si-desc">+1 life (max 3)</span>
+        </div>
+        <div class="shop-item" id="shop-skip">
+          <span class="si-icon">⏭</span>
+          <span class="si-name">Skip Level</span>
+          <span class="si-cost">15 coins</span>
+          <span class="si-desc">Saves a skip token</span>
+        </div>
+      </div>
+      <button id="shop-close">Continue →</button>
+    </div>
     <div id="overlay">
       <h2 id="ov-title">GAME OVER</h2>
       <p class="ov-sub"   id="ov-sub"></p>
@@ -147,32 +221,77 @@ function sfxCoin()    { const a=getAC(); if(!a||sfxVol===0) return; [600,800,100
 function sfxWin()     { const a=getAC(); if(!a||sfxVol===0) return; [440,554,659,880].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.18,0.22),i*100)); }
 function sfxGameOver(){ const a=getAC(); if(!a||sfxVol===0) return; [330,247,196,147].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.28,0.22),i*160)); }
 
-function startMusic() {
+// ── Per-biome music tracks ────────────────────────────────────────────────
+// Each track is defined as { notes[], step, type, amp }
+// notes = Hz values, step = seconds per note, type = oscillator type
+const BIOME_TRACKS = {
+  space: {
+    // Floating arpeggios — sparse, ethereal
+    notes: [130.8, 164.8, 196.0, 246.9, 261.6, 196.0, 164.8, 130.8],
+    step: 0.38, type: "sine", amp: 0.18,
+  },
+  forest: {
+    // Bouncy major pentatonic — bright, nature-like
+    notes: [261.6, 329.6, 392.0, 523.2, 392.0, 329.6, 261.6, 220.0,
+            261.6, 392.0, 523.2, 659.2, 523.2, 392.0, 329.6, 261.6],
+    step: 0.28, type: "sine", amp: 0.16,
+  },
+  dungeon: {
+    // Ominous low pulse — minor, tense
+    notes: [98.0, 110.0, 123.5, 110.0, 98.0, 92.5, 98.0, 110.0,
+            123.5, 130.8, 123.5, 110.0, 98.0, 87.3, 92.5, 98.0],
+    step: 0.45, type: "triangle", amp: 0.22,
+  },
+  volcano: {
+    // Driving rhythmic pattern — intense, percussive feel
+    notes: [146.8, 164.8, 146.8, 110.0, 130.8, 146.8, 164.8, 196.0,
+            146.8, 130.8, 110.0, 123.5, 146.8, 164.8, 130.8, 110.0],
+    step: 0.22, type: "sawtooth", amp: 0.10,
+  },
+};
+
+let currentTrackName = "";
+
+function startMusic(biomeName) {
   const a = getAC(); if (!a) return;
+  const trackName = biomeName || "space";
+  if (trackName === currentTrackName && musicGain) return; // already playing
   stopMusic();
+  currentTrackName = trackName;
   musicGain = a.createGain();
-  musicGain.gain.setValueAtTime(musicVol*0.18, a.currentTime);
+  musicGain.gain.setValueAtTime(musicVol * 0.18, a.currentTime);
   musicGain.connect(a.destination);
-  const notes = [130.8,164.8,196,246.9,261.6,196,164.8,130.8];
-  const step = 0.38; let t = a.currentTime+0.1;
+
+  const track = BIOME_TRACKS[trackName] || BIOME_TRACKS.space;
+  const { notes, step, type, amp } = track;
+  let t = a.currentTime + 0.1;
+
   function scheduleLoop() {
-    notes.forEach((freq,i) => {
-      const o=a.createOscillator(), g=a.createGain();
-      o.type='sine'; o.frequency.value=freq;
-      g.gain.setValueAtTime(0, t+i*step);
-      g.gain.linearRampToValueAtTime(1, t+i*step+0.04);
-      g.gain.exponentialRampToValueAtTime(0.001, t+i*step+step*0.9);
+    notes.forEach((freq, i) => {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, t + i*step);
+      g.gain.linearRampToValueAtTime(amp, t + i*step + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i*step + step*0.85);
       o.connect(g); g.connect(musicGain);
-      o.start(t+i*step); o.stop(t+i*step+step);
+      o.start(t + i*step); o.stop(t + i*step + step);
       musicNodes.push(o);
     });
-    t += notes.length*step;
+    t += notes.length * step;
   }
-  for (let b=0;b<4;b++) scheduleLoop();
-  const id = setInterval(()=>{ if(!ac||ac.state==='closed'){clearInterval(id);return;} scheduleLoop(); }, notes.length*step*1000*0.8);
-  musicNodes.push({ stop:()=>clearInterval(id) });
+
+  for (let b = 0; b < 3; b++) scheduleLoop();
+  const loopMs = notes.length * step * 1000 * 0.85;
+  const id = setInterval(() => {
+    if (!ac || ac.state === "closed") { clearInterval(id); return; }
+    scheduleLoop();
+  }, loopMs);
+  musicNodes.push({ stop: () => clearInterval(id) });
 }
-function stopMusic() { musicNodes.forEach(n=>{try{n.stop&&n.stop();}catch(e){}}); musicNodes=[]; }
+function stopMusic() {
+  musicNodes.forEach(n => { try { n.stop && n.stop(); } catch(e){} });
+  musicNodes = []; currentTrackName = "";
+}
 
 // =========================================================================
 // BIOMES  — each defines colours, bg style, platform tints, spike shape
@@ -241,7 +360,6 @@ function difficulty(lvl) {
     gapBonus:      Math.floor(t*18),        // adds to maxJumpX gap
     movingChance:  t > 0.15 ? 0.18+t*0.3 : 0, // no movers until lvl 3
     movingSpeed:   0.9 + t*2.2,            // px/frame
-    fallerChance:  t > 0.35 ? 0.18+t*0.2 : 0, // falling blocks from lvl 6
     coinChance:    0.40 - t*0.12,           // slightly fewer coins at high lvl
     extraPlats:    Math.min(Math.floor(t*3), 3), // up to 3 extra platforms
   };
@@ -279,6 +397,21 @@ let levelTransition = false;
 let particles       = [];
 let stars           = [];
 let currentBiome    = BIOMES.space;
+
+// ── Shop ──────────────────────────────────────────────────────────────────
+let shopOpen        = false;
+let pendingShop     = false;
+let skipTokens      = 0;  // owned skip-level tokens
+
+// ── Special level types ───────────────────────────────────────────────────
+// "normal" | "timer" | "treasure"
+let specialType     = "normal";
+let timerSeconds    = 0;    // countdown in seconds
+let timerMs         = 0;    // accumulated ms
+let timerActive     = false;
+
+// ── Active buffs ──────────────────────────────────────────────────────────
+let hasShield       = false;  // absorb one hit
 
 // =========================================================================
 // STARS  (only for biomes with bgStars)
@@ -333,7 +466,7 @@ function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 function randFloat(min,max){return min+Math.random()*(max-min);}
 
 function getBiome(lvl) {
-  const idx = Math.floor((lvl-1)/4) % BIOME_ORDER.length;
+  const idx = Math.floor((lvl-1)/10) % BIOME_ORDER.length;
   return BIOMES[BIOME_ORDER[idx]];
 }
 
@@ -352,8 +485,8 @@ function jumpReach(diff) {
 
 // ── Overlap check (with breathing room) ──────────────────────────────────
 function platsOverlap(a, b) {
-  const mx = 8;   // horizontal margin
-  const my = 55;  // vertical clear zone — no platform within 55px above/below
+  const mx = 6;   // horizontal margin
+  const my = 40;  // vertical clear zone — no platform within 40px above/below
   return a.x < b.x+b.w+mx && a.x+a.w+mx > b.x &&
          a.y < b.y+b.h+my && a.y+a.h+my > b.y;
 }
@@ -374,11 +507,11 @@ function nearDoor(r, door) {
 // "rl"  = right→left
 // "bu"  = bottom→up (start bottom-right, climb to top-left)
 // "mix" = left→right but with aggressive vertical variation
-const LAYOUTS = ["lr","rl","bu","mix"];
+const LAYOUTS = ["lr","rl","lr","mix","lr","rl"]; // "bu" removed — caused unreachable layouts
 
 function pickLayout(lvl) {
   // First 2 levels always left-right so player learns the game
-  if (lvl <= 2) return "lr";
+  if (lvl <= 3) return "lr"; // first 3 levels always left-right
   return LAYOUTS[randInt(0, LAYOUTS.length-1)];
 }
 
@@ -421,51 +554,53 @@ function tryGenerateLevel(lvl) {
     let newX, newY, newW;
     let placed = false;
 
-    for (let attempt=0; attempt<10; attempt++) {
+    for (let attempt=0; attempt<14; attempt++) {
       newW = randInt(CFG.platMinW, CFG.platMaxW);
 
       let gapX, dy;
 
-      if (layout === "bu") {
-        // Climb: zig-zag left/right but always going up
-        gapX = randInt(35, reach.maxH - 10);
-        dy   = isLast ? randInt(-reach.maxU, -35) : randInt(-reach.maxU, -20);
-        // Alternate sides each step to zig-zag
-        const side = (i % 2 === 0) ? 1 : -1;
-        if (dirX === -1) gapX *= side; // flip for right-to-left start
-      } else if (layout === "mix") {
-        gapX = randInt(40, reach.maxH);
-        // More aggressive vertical variation
-        dy   = isLast ? randInt(-reach.maxU, -30)
-             : randInt(-reach.maxU, reach.maxD);
-      } else {
-        // Normal lr / rl
-        const gapMax = Math.min(reach.maxH, 100);
-        gapX = isLast ? randInt(55, gapMax) : randInt(38, gapMax);
-        dy   = isLast ? randInt(-reach.maxU, -25)
-             : randInt(-reach.maxU, reach.maxD);
-      }
+      // Hard limits derived from player physics:
+      // Horizontal: player can jump at most ~reach.maxH px during a full jump arc
+      // Vertical up: max height gain is reach.maxU px
+      // Vertical down: max safe drop is reach.maxD px
+      const safeGapMax = reach.maxH - 10;   // leave 10px safety margin
+      const safeUp     = reach.maxU - 8;
+      const safeDown   = reach.maxD - 8;
 
-      // Apply direction
       if (layout === "bu") {
-        // zig-zag: odd steps go one way, even the other
+        gapX = randInt(30, Math.min(safeGapMax, 85));
+        dy   = isLast ? randInt(-safeUp, -30) : randInt(-safeUp, -18);
         const side = (i%2===0 ? 1 : -1) * (dirX < 0 ? -1 : 1);
         newX = prev.x + side * (prev.w + Math.abs(gapX));
+      } else if (layout === "mix") {
+        gapX = randInt(35, Math.min(safeGapMax, 90));
+        dy   = isLast ? randInt(-safeUp, -28)
+             : randInt(-safeUp, safeDown);
+        newX = prev.x + dirX * (prev.w + gapX);
       } else {
+        gapX = isLast ? randInt(50, Math.min(safeGapMax, 88))
+                      : randInt(32, Math.min(safeGapMax, 88));
+        dy   = isLast ? randInt(-safeUp, -22)
+                      : randInt(-safeUp, safeDown);
         newX = prev.x + dirX * (prev.w + gapX);
       }
 
       newY = Math.max(78, Math.min(CFG.groundY - 68, prev.y + dy));
-
-      // Clamp to canvas
       newX = Math.max(12, Math.min(CFG.W - newW - 12, newX));
 
       const candidate = {x:newX, y:newY, w:newW, h:CFG.platH};
 
+      // Reachability check: the actual gap after clamping must be jumpable.
+      // dx = horizontal distance between platform edges (can be 0 if overlapping in X)
+      // dy = vertical difference (positive = next is lower)
+      const dx = Math.max(0, newX > prev.x ? newX - (prev.x+prev.w) : prev.x - (newX+newW));
+      const actualDy = newY - prev.y; // positive = lower, negative = higher
+
+      const reachable = dx <= reach.maxH && actualDy <= reach.maxD && actualDy >= -reach.maxU;
+      if (!reachable) continue;
+
       // No overlap with existing platforms
-      if (!platforms.every(p => !platsOverlap(candidate, p))) {
-        dy += 30; continue; // push down and retry
-      }
+      if (!platforms.every(p => !platsOverlap(candidate, p))) continue;
 
       placed = true; break;
     }
@@ -494,7 +629,7 @@ function tryGenerateLevel(lvl) {
 
     // Spikes: not on moving platforms, not on last platform
     // Placement styles: left-edge, right-edge, both-edges, center, spread
-    if (!isLast && i>1 && !platObj.moving && Math.random() < diff.spikeChance) {
+    if (!isLast && i>1 && !platObj.moving && newW >= 100 && Math.random() < diff.spikeChance) {
       const maxFit = maxSpikesForWidth(newW);
       if (maxFit >= 1) {
         // Styles: 0=left cluster  1=right cluster  2=both edges  3=spread
@@ -522,18 +657,6 @@ function tryGenerateLevel(lvl) {
           }
           for (const sx of placed2) spikes.push({x:sx, y:newY-14, w:14, h:14});
         }
-      }
-    }
-
-    // Falling blocks: needs clear vertical space, not on last platform
-    if (!isLast && i>2 && !platObj.moving && Math.random() < diff.fallerChance) {
-      const fallerY = newY - 95;
-      const clear = fallerY > 30 && platforms.every(p =>
-        !(p.x < newX+newW && p.x+p.w > newX && Math.abs(p.y-fallerY) < 65)
-      );
-      if (clear) {
-        fallers.push({x:newX+newW/2-12, y:fallerY, w:24, h:16,
-          originY:fallerY, state:"idle", shakeT:0, vy:0});
       }
     }
 
@@ -568,7 +691,6 @@ function tryGenerateLevel(lvl) {
   // Remove any spikes / coins / fallers that are inside or near the door
   const filteredSpikes = spikes.filter(s => !nearDoor(s, door));
   const filteredCoins  = coins.filter(c => !nearDoor(c, door));
-  const filteredFallers= fallers.filter(f => !nearDoor(f, door));
 
   // Spawn at start platform, a few px from the edge
   const first = platforms[0];
@@ -577,32 +699,82 @@ function tryGenerateLevel(lvl) {
     : first.x + 14;
   const spawn = {x:spawnX, y:first.y - CFG.pSize};
 
+  // Invisible wall on the "wrong" side of the spawn platform.
+  // dirX > 0 (lr/mix): player should go RIGHT  → wall on the LEFT edge
+  // dirX < 0 (rl/bu):  player should go LEFT   → wall on the RIGHT edge
+  const wallOnLeft = (layout === "lr" || layout === "mix");
+  const spawnWall = wallOnLeft
+    ? {x: first.x - 24, y: first.y - 120, w: 24, h: 120}   // left side
+    : {x: first.x + first.w, y: first.y - 120, w: 24, h: 120}; // right side
+
+  // Final reachability guard — BFS on the cleaned platform list
+  if (!isReachable(cleanPlatforms, diff)) return null;
+
   return {platforms:cleanPlatforms, spikes:filteredSpikes, coins:filteredCoins,
-          fallers:filteredFallers, spawn, door, biome, layout};
+          fallers:[], spawn, spawnWall, door, biome, layout};
 }
 
-function isLevelPlayable(lvl) {
-  // Checks done inside tryGenerateLevel via null return
+// ── Reachability check ───────────────────────────────────────────────────
+// Can the player jump from platform A to platform B?
+// Uses conservative physics estimates.
+function canReach(a, b, diff) {
+  const reach = jumpReach(diff);
+  // Horizontal distance between nearest edges
+  const horizGap = Math.max(0, b.x - (a.x+a.w), a.x - (b.x+b.w));
+  // Vertical: positive = B is above A
+  const vertDiff = a.y - b.y;  // positive means B is higher than A
+  if (horizGap > reach.maxH) return false;
+  if (vertDiff >  reach.maxU) return false; // B too high to jump to
+  if (vertDiff < -reach.maxD) return false; // B too far below (deadly fall)
   return true;
 }
 
-function generateLevel(lvl) {
-  for (let a=0; a<80; a++) {
-    const c = tryGenerateLevel(lvl);
-    if (c && c.platforms.length >= CFG.minPlats) return c;
+// BFS: can player reach door platform from spawn platform?
+function isReachable(platforms, diff) {
+  if (platforms.length < 2) return false;
+  const visited = new Set([0]);
+  const queue   = [0];
+  const goal    = platforms.length - 1;
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === goal) return true;
+    for (let j=0; j<platforms.length; j++) {
+      if (visited.has(j)) continue;
+      if (canReach(platforms[cur], platforms[j], diff) ||
+          canReach(platforms[j], platforms[cur], diff)) {
+        visited.add(j);
+        queue.push(j);
+      }
+    }
   }
-  // Guaranteed fallback: simple straight level
+  return visited.has(goal);
+}
+
+function generateLevel(lvl) {
+  const diff = difficulty(lvl);
+  for (let a=0; a<120; a++) {
+    const c = tryGenerateLevel(lvl);
+    if (!c || c.platforms.length < CFG.minPlats) continue;
+    if (isReachable(c.platforms, diff)) return c;
+  }
+  // Guaranteed fallback — evenly spaced, always reachable
   const biome = getBiome(lvl);
   const platforms=[];
-  const step = Math.floor(CFG.W / 6);
-  for (let i=0;i<6;i++) {
-    platforms.push({x:40+i*step, y:CFG.groundY-80-i*30, w:110, h:CFG.platH,
-      color:i%biome.platform.length, biome});
+  const n = 6;
+  const stepX = Math.floor((CFG.W - 100) / (n-1));
+  for (let i=0;i<n;i++) {
+    platforms.push({
+      x: 40 + i*stepX,
+      y: CFG.groundY - 80 - i*28,
+      w: 110, h: CFG.platH,
+      color: i%biome.platform.length, biome
+    });
   }
-  const last = platforms[platforms.length-1];
-  const door = {x:last.x+40, y:last.y-44, w:36, h:44};
+  const last = platforms[n-1];
+  const door  = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
   const spawn = {x:platforms[0].x+14, y:platforms[0].y-CFG.pSize};
-  return {platforms, spikes:[], coins:[], fallers:[], spawn, door, biome, layout:"lr"};
+  const fbWall = {x: platforms[0].x - 24, y: platforms[0].y - 120, w: 24, h: 120};
+  return {platforms, spikes:[], coins:[], fallers:[], spawn, spawnWall:fbWall, door, biome, layout:"lr"};
 }
 
 // =========================================================================
@@ -621,27 +793,6 @@ function updateMovingPlatforms(platforms) {
   }
 }
 
-// =========================================================================
-// FALLING BLOCKS  update
-// =========================================================================
-function updateFallers(fallers, player) {
-  for (const f of fallers) {
-    if (f.state === "landed") continue;
-    const distX = Math.abs((f.x+f.w/2)-(player.x+player.w/2));
-
-    if (f.state === "idle" && distX < 70 && player.y < f.y+200) {
-      f.state = "shaking"; f.shakeT = 0;
-    }
-    if (f.state === "shaking") {
-      f.shakeT++;
-      if (f.shakeT > 45) { f.state = "falling"; f.vy = 0.4; }
-    }
-    if (f.state === "falling") {
-      f.vy += 0.35; f.y += f.vy;
-      if (f.y > CFG.H) f.state = "landed";
-    }
-  }
-}
 
 // =========================================================================
 // PLAYER
@@ -706,6 +857,17 @@ function resetPlayerToSpawn() {
 // =========================================================================
 function rectsOverlap(a,b){ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y; }
 
+function resolveWallCollision(p, wall) {
+  if (!wall) return;
+  if (!rectsOverlap(p, wall)) return;
+  // Push player out horizontally only
+  const overlapLeft  = p.x + p.w - wall.x;
+  const overlapRight = wall.x + wall.w - p.x;
+  if (overlapLeft < overlapRight) { p.x = wall.x - p.w; }
+  else                            { p.x = wall.x + wall.w; }
+  p.vx = 0;
+}
+
 function resolvePlatformCollisions(p, platforms) {
   p.onGround=false;
   for (const plat of platforms) {
@@ -732,13 +894,6 @@ function checkCoinPickups(p) {
   }
 }
 
-function checkFallerCollision(p, fallers) {
-  for (const f of fallers) {
-    if (f.state==="landed") continue;
-    if (rectsOverlap(p,f)) return true;
-  }
-  return false;
-}
 
 // =========================================================================
 // RENDERING
@@ -849,26 +1004,6 @@ function drawSpikes(spikes) {
   ctx.shadowBlur=0;
 }
 
-function drawFallers(fallers, time) {
-  for (const f of fallers) {
-    if (f.state==="landed") continue;
-    let dx=f.x;
-    if (f.state==="shaking") dx+=Math.sin(f.shakeT*1.2)*2.5;
-    // Warning line (shadow on ground below)
-    if (f.state==="idle"||f.state==="shaking") {
-      ctx.fillStyle="rgba(239,68,68,0.18)";
-      ctx.fillRect(f.x-4, CFG.groundY-4, f.w+8, 6);
-    }
-    // The block itself
-    const flash = f.state==="shaking" ? (Math.floor(f.shakeT/5)%2===0?1:0.5) : 1;
-    ctx.globalAlpha=flash;
-    ctx.fillStyle= f.state==="falling" ? "#dc2626" : "#b91c1c";
-    ctx.fillRect(dx, f.y, f.w, f.h);
-    ctx.fillStyle="rgba(255,255,255,0.2)";
-    ctx.fillRect(dx,f.y,f.w,3);
-    ctx.globalAlpha=1;
-  }
-}
 
 function drawCoins(coins, time) {
   for (const coin of coins) {
@@ -924,7 +1059,6 @@ function drawPlayer(p) {
 function render(time) {
   drawBackground(time);
   drawPlatforms(level.platforms);
-  drawFallers(level.fallers, time);
   drawSpikes(level.spikes);
   drawCoins(level.coins, time);
   drawSpawn(level.spawn);
@@ -935,12 +1069,119 @@ function render(time) {
 }
 
 // =========================================================================
+// SHOP
+// =========================================================================
+const shopOverlay   = document.getElementById("shop-overlay");
+const shopCoinsLbl  = document.getElementById("shop-coins-label");
+const shopLifeBtn   = document.getElementById("shop-life");
+const shopSkipBtn   = document.getElementById("shop-skip");
+const shopCloseBtn  = document.getElementById("shop-close");
+const shieldPip     = document.getElementById("shield-pip");
+
+function openShop() {
+  shopOpen = true;
+  shopCoinsLbl.textContent = `You have ${totalCoins} coin${totalCoins!==1?"s":""}`;
+  shopLifeBtn.classList.toggle("disabled", totalCoins < 5 || lives >= CFG.maxLives);
+  shopSkipBtn.classList.toggle("disabled", totalCoins < 15);
+  shopOverlay.classList.add("active");
+}
+
+function closeShop() {
+  shopOpen = false;
+  shopOverlay.classList.remove("active");
+  startLevel(false); // levelNumber already bumped before openShop() was called
+}
+
+shopLifeBtn.addEventListener("click", () => {
+  if (totalCoins < 5 || lives >= CFG.maxLives) return;
+  totalCoins -= 5; lives = Math.min(lives+1, CFG.maxLives);
+  updateHud();
+  shopCoinsLbl.textContent = `You have ${totalCoins} coin${totalCoins!==1?"s":""}`;
+  shopLifeBtn.classList.toggle("disabled", totalCoins < 5 || lives >= CFG.maxLives);
+  shopSkipBtn.classList.toggle("disabled", totalCoins < 15);
+  sfxCoin();
+});
+
+shopSkipBtn.addEventListener("click", () => {
+  if (totalCoins < 15) return;
+  totalCoins -= 15; skipTokens++;
+  updateHud(); updateSkipBtn();
+  shopCoinsLbl.textContent = `You have ${totalCoins} coin${totalCoins!==1?"s":""}`;
+  shopSkipBtn.classList.toggle("disabled", totalCoins < 15);
+  sfxCoin();
+});
+
+shopCloseBtn.addEventListener("click", () => closeShop());
+
+// =========================================================================
+// TIMER
+// =========================================================================
+const timerWrap = document.getElementById("timer-wrap");
+const timerBar  = document.getElementById("timer-bar");
+const banner    = document.getElementById("level-banner");
+
+function startTimer(seconds) {
+  timerSeconds = seconds; timerMs = 0; timerActive = true;
+  timerWrap.classList.add("active");
+  timerBar.style.width = "100%";
+  timerBar.style.background = "#38bdf8";
+}
+
+function stopTimer() {
+  timerActive = false;
+  timerWrap.classList.remove("active");
+}
+
+function updateTimer(dt) {
+  if (!timerActive || isDead || levelTransition || shopOpen) return;
+  timerMs += dt;
+  const elapsed = timerMs / 1000;
+  const remaining = Math.max(0, timerSeconds - elapsed);
+  const pct = remaining / timerSeconds;
+  timerBar.style.width = (pct * 100) + "%";
+  timerBar.style.background = pct > 0.4 ? "#38bdf8" : pct > 0.2 ? "#fbbf24" : "#ef4444";
+  if (remaining <= 0) { stopTimer(); killPlayer(); }
+}
+
+function showBanner(text, color) {
+  banner.textContent = text;
+  banner.style.color = color || "#e8eaed";
+  banner.style.borderColor = color ? color+"55" : "rgba(255,255,255,0.12)";
+  banner.classList.add("active");
+  setTimeout(() => banner.classList.remove("active"), 3000);
+}
+
+// =========================================================================
+// SPECIAL LEVEL PICKER
+// =========================================================================
+function pickSpecialType(lvl) {
+  // Timer levels every 5th (but not on shop levels every 10th)
+  const mod = (lvl-1) % 10;
+  if (mod === 4) return "timer";
+  return "normal";
+}
+
+// For treasure levels: override generation to have many coins, no spikes/fallers
+
+// =========================================================================
 // GAME FLOW
 // =========================================================================
 function startLevel(advance) {
   levelTransition=false; isDead=false; deathFlash=0;
+  stopTimer();
   if (advance) { levelNumber++; score+=50; }
-  level = generateLevel(levelNumber);
+
+  specialType = pickSpecialType(levelNumber);
+
+  if (specialType === "timer") {
+    level = generateLevel(levelNumber);
+    showBanner("⚡ Hurry! Beat the clock!", "#38bdf8");
+    startTimer(22);
+  } else {
+    level = generateLevel(levelNumber);
+  }
+
+  if (currentBiome.name !== level.biome.name) startMusic(level.biome.name.toLowerCase());
   currentBiome = level.biome;
   player = createPlayer(level.spawn);
   updateHud();
@@ -948,6 +1189,14 @@ function startLevel(advance) {
 
 function killPlayer() {
   if (isDead||levelTransition) return;
+  if (hasShield) {
+    hasShield=false;
+    shieldPip.classList.remove("active");
+    deathFlash=0.6;
+    spawnParticles(player.x+player.w/2,player.y+player.h/2,"#38bdf8",10,2.5);
+    setTimeout(()=>{ deathFlash=0; resetPlayerToSpawn(); },280);
+    return;
+  }
   isDead=true; deathFlash=1; lives--;
   updateHud();
   spawnParticles(player.x+player.w/2,player.y+player.h/2,"#f87171",14,3);
@@ -959,9 +1208,21 @@ function killPlayer() {
 function completeLevel() {
   if(levelTransition||isDead) return;
   levelTransition=true;
+  stopTimer();
   sfxWin();
   spawnParticles(level.door.x+18,level.door.y+22,currentBiome.accent,20,3.5);
-  setTimeout(()=>{ctx.fillStyle=currentBiome.bg;ctx.fillRect(0,0,CFG.W,CFG.H);startLevel(true);},320);
+  setTimeout(()=>{
+    ctx.fillStyle=currentBiome.bg; ctx.fillRect(0,0,CFG.W,CFG.H);
+    levelNumber++;  // bump here so shop shows correct "next level" number
+    score+=50;
+    // Every 10 levels → shop before continuing
+    if (levelNumber % 10 === 1 && levelNumber > 1) {
+      levelTransition=false;
+      openShop();
+    } else {
+      startLevel(false);  // false = don't bump level again
+    }
+  },320);
 }
 
 function showGameOver() {
@@ -978,29 +1239,51 @@ function showGameOver() {
 function fullRestart() {
   gameOver=false;isDead=false;deathFlash=0;levelTransition=false;
   lives=CFG.maxLives;levelNumber=1;score=0;totalCoins=0;particles=[];
+  shopOpen=false; hasShield=false; specialType="normal"; skipTokens=0; updateSkipBtn();
+  shopOverlay.classList.remove("active");
+  shieldPip.classList.remove("active");
+  stopTimer();
   overlay.classList.remove("active");
   startLevel(false);
 }
 restartBtn.addEventListener("click",fullRestart);
 
+// Skip token button
+const skipBtn  = document.getElementById("skip-btn");
+const skipCountEl = document.getElementById("skipCount");
+function updateSkipBtn() {
+  skipCountEl.textContent = skipTokens;
+  skipBtn.style.display = skipTokens > 0 ? "inline-block" : "none";
+}
+skipBtn.addEventListener("click", () => {
+  if (skipTokens <= 0 || isDead || levelTransition || shopOpen || gameOver) return;
+  skipTokens--; updateSkipBtn();
+  sfxWin();
+  completeLevel();
+});
+
 // =========================================================================
 // MAIN LOOP
 // =========================================================================
+let lastTime = 0;
 function gameLoop(time) {
-  if (!gameOver && !levelTransition) {
+  const dt = lastTime ? Math.min(time - lastTime, 50) : 16;
+  lastTime = time;
+
+  if (!gameOver && !levelTransition && !shopOpen) {
+    updateTimer(dt);
     player.wasOnGround=player.onGround;
     updateMovingPlatforms(level.platforms);
     updatePlayer(player);
     resolvePlatformCollisions(player,level.platforms);
+    resolveWallCollision(player, level.spawnWall);
     if(player.onGround&&!player.wasOnGround) player.landSquash=Math.max(player.landSquash,10);
     updatePlayerMotionFx(player);
     updateParticles();
     checkCoinPickups(player);
-    updateFallers(level.fallers, player);
 
     if      (playerFellInPit(player))                            killPlayer();
     else if (!isDead&&level.spikes.some(s=>rectsOverlap(player,s))) killPlayer();
-    else if (!isDead&&checkFallerCollision(player,level.fallers))   killPlayer();
     else if (!isDead&&rectsOverlap(player,level.door))              completeLevel();
 
     if(deathFlash>0) deathFlash=Math.max(0,deathFlash-0.08);
@@ -1040,7 +1323,7 @@ function bindMob(id,key){
 }
 bindMob("mob-left","left"); bindMob("mob-right","right"); bindMob("mob-jump","up");
 
-document.addEventListener("pointerdown",()=>{getAC();startMusic();},{once:true});
+document.addEventListener("pointerdown",()=>{getAC();startMusic(currentBiome.name.toLowerCase());},{once:true});
 
 // =========================================================================
 // BOOT
