@@ -352,9 +352,10 @@ function jumpReach(diff) {
 
 // ── Overlap check (with breathing room) ──────────────────────────────────
 function platsOverlap(a, b) {
-  const m = 10; // margin px
-  return a.x < b.x+b.w+m && a.x+a.w+m > b.x &&
-         a.y-40 < b.y+b.h  && a.y+b.h  > b.y-40;
+  const mx = 8;   // horizontal margin
+  const my = 55;  // vertical clear zone — no platform within 55px above/below
+  return a.x < b.x+b.w+mx && a.x+a.w+mx > b.x &&
+         a.y < b.y+b.h+my && a.y+a.h+my > b.y;
 }
 
 // ── Spike helpers ─────────────────────────────────────────────────────────
@@ -496,7 +497,8 @@ function tryGenerateLevel(lvl) {
     if (!isLast && i>1 && !platObj.moving && Math.random() < diff.spikeChance) {
       const maxFit = maxSpikesForWidth(newW);
       if (maxFit >= 1) {
-        const style = randInt(0, 4); // 0=left 1=right 2=both-edges 3=center 4=spread
+        // Styles: 0=left cluster  1=right cluster  2=both edges  3=spread
+        const style = randInt(0, 3);
         const edgeOff = 6; // px from platform edge
         const sc = randInt(1, Math.min(1+diff.extraSpikes, maxFit));
         if (style === 0) {
@@ -506,22 +508,17 @@ function tryGenerateLevel(lvl) {
           // Right side cluster
           for (let s=0; s<sc; s++) spikes.push({x:newX+newW-edgeOff-14-s*20, y:newY-14, w:14, h:14});
         } else if (style === 2) {
-          // Both edges (1 spike each side, regardless of sc)
-          spikes.push({x:newX+edgeOff,           y:newY-14, w:14, h:14});
-          spikes.push({x:newX+newW-edgeOff-14,   y:newY-14, w:14, h:14});
-        } else if (style === 3) {
-          // Center (original behaviour)
-          const usable = newW - 32;
-          for (let s=0; s<sc; s++) {
-            const sx = newX + 16 + Math.floor(usable/(sc+1)*(s+1)) - 7;
-            spikes.push({x:sx, y:newY-14, w:14, h:14});
-          }
+          // Both edges — 1 spike each side, middle stays clear
+          spikes.push({x:newX+edgeOff,         y:newY-14, w:14, h:14});
+          spikes.push({x:newX+newW-edgeOff-14, y:newY-14, w:14, h:14});
         } else {
-          // Spread: random positions across full width with min spacing
+          // Spread: random positions with min spacing, never dead-center
           const placed2 = [];
-          for (let s=0; s<sc*3 && placed2.length<sc; s++) {
+          const mid = newX + newW/2;
+          for (let s=0; s<sc*4 && placed2.length<sc; s++) {
             const sx = newX + edgeOff + randInt(0, newW - 14 - edgeOff*2);
-            if (placed2.every(px => Math.abs(px-sx) > 18)) placed2.push(sx);
+            const notCenter = Math.abs(sx + 7 - mid) > 18;
+            if (notCenter && placed2.every(px => Math.abs(px-sx) > 18)) placed2.push(sx);
           }
           for (const sx of placed2) spikes.push({x:sx, y:newY-14, w:14, h:14});
         }
@@ -558,6 +555,16 @@ function tryGenerateLevel(lvl) {
   const last = platforms[platforms.length-1];
   const door = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
 
+  // Remove platforms stacked too close below the door platform
+  // (keep first and last, clean up any mid platforms in the door's column)
+  const doorPlat = last;
+  const cleanPlatforms = platforms.filter((p, idx) => {
+    if (idx === 0 || idx === platforms.length-1) return true; // always keep start+end
+    const inDoorColumn = p.x < doorPlat.x+doorPlat.w+10 && p.x+p.w > doorPlat.x-10;
+    const tooClose     = p.y > doorPlat.y - 5 && p.y < doorPlat.y + 130;
+    return !(inDoorColumn && tooClose);
+  });
+
   // Remove any spikes / coins / fallers that are inside or near the door
   const filteredSpikes = spikes.filter(s => !nearDoor(s, door));
   const filteredCoins  = coins.filter(c => !nearDoor(c, door));
@@ -570,7 +577,7 @@ function tryGenerateLevel(lvl) {
     : first.x + 14;
   const spawn = {x:spawnX, y:first.y - CFG.pSize};
 
-  return {platforms, spikes:filteredSpikes, coins:filteredCoins,
+  return {platforms:cleanPlatforms, spikes:filteredSpikes, coins:filteredCoins,
           fallers:filteredFallers, spawn, door, biome, layout};
 }
 
@@ -645,6 +652,7 @@ function createPlayer(spawn) {
     vx:0, vy:0, onGround:false, wasOnGround:false,
     facing:1, animT:0, landSquash:0, slideDust:[],
     coyoteTime:0, jumpBuffer:0,
+    prevY:0,           // Y before current frame move (for one-way collision)
     standingOn:null,   // reference to moving platform player is on
   };
 }
@@ -671,6 +679,7 @@ function updatePlayer(p) {
   if (!keys.up&&p.vy<0&&p.vy>CFG.jumpCutVy) p.vy=Math.max(p.vy*0.88,CFG.jumpCutVy);
   p.vy+=p.vy<0?(keys.up?CFG.gravUp:CFG.gravUp*1.15):CFG.gravFall;
   if(p.vy>CFG.maxFall) p.vy=CFG.maxFall;
+  p.prevY = p.y;   // remember pre-move Y for one-way collision
   p.x+=p.vx; p.y+=p.vy;
   if(p.x<0){p.x=0;p.vx*=0.35;} if(p.x+p.w>CFG.W){p.x=CFG.W-p.w;p.vx*=0.35;}
 }
@@ -689,7 +698,7 @@ function resetPlayerToSpawn() {
   player.x=level.spawn.x; player.y=level.spawn.y;
   player.vx=0; player.vy=0; player.onGround=false; player.wasOnGround=false;
   player.landSquash=0; player.slideDust=[]; player.animT=0; player.coyoteTime=0; player.jumpBuffer=0;
-  player.standingOn=null;
+  player.prevY=player.y; player.standingOn=null;
 }
 
 // =========================================================================
@@ -702,15 +711,11 @@ function resolvePlatformCollisions(p, platforms) {
   for (const plat of platforms) {
     if (!rectsOverlap(p,plat)) continue;
 
-    // One-way platforms: only collide when falling onto the top surface.
-    // If the player's feet were ABOVE the platform top last frame → land.
-    // If the player is moving upward (jumping through) → skip entirely.
-    const playerFeetLastFrame = p.y + p.h - p.vy; // feet position before this frame's move
-    const comingFromAbove = playerFeetLastFrame <= plat.y + 2;
+    // One-way: only land when player was above the platform top last frame
+    // and is now moving downward (or zero). Jumping up passes through.
+    const feetWasAbove = p.prevY + p.h <= plat.y + 3; // prevY set in gameLoop before move
+    if (p.vy < 0 || !feetWasAbove) continue;
 
-    if (p.vy < 0 || !comingFromAbove) continue; // passing through from below or side
-
-    // Land on top
     p.y = plat.y - p.h;
     if (p.vy > 2) p.landSquash = 12;
     p.vy = 0; p.onGround = true; p.standingOn = plat;
