@@ -491,16 +491,39 @@ function tryGenerateLevel(lvl) {
 
     platforms.push(platObj);
 
-    // Spikes: not on moving platforms, not too few to fit, not on last
+    // Spikes: not on moving platforms, not on last platform
+    // Placement styles: left-edge, right-edge, both-edges, center, spread
     if (!isLast && i>1 && !platObj.moving && Math.random() < diff.spikeChance) {
       const maxFit = maxSpikesForWidth(newW);
       if (maxFit >= 1) {
+        const style = randInt(0, 4); // 0=left 1=right 2=both-edges 3=center 4=spread
+        const edgeOff = 6; // px from platform edge
         const sc = randInt(1, Math.min(1+diff.extraSpikes, maxFit));
-        const edgeMargin = 18;
-        const usable = newW - edgeMargin*2;
-        for (let s=0; s<sc; s++) {
-          const sx = newX + edgeMargin + Math.floor(usable/(sc+1)*(s+1)) - 7;
-          spikes.push({x:sx, y:newY-14, w:14, h:14});
+        if (style === 0) {
+          // Left side cluster
+          for (let s=0; s<sc; s++) spikes.push({x:newX+edgeOff+s*20, y:newY-14, w:14, h:14});
+        } else if (style === 1) {
+          // Right side cluster
+          for (let s=0; s<sc; s++) spikes.push({x:newX+newW-edgeOff-14-s*20, y:newY-14, w:14, h:14});
+        } else if (style === 2) {
+          // Both edges (1 spike each side, regardless of sc)
+          spikes.push({x:newX+edgeOff,           y:newY-14, w:14, h:14});
+          spikes.push({x:newX+newW-edgeOff-14,   y:newY-14, w:14, h:14});
+        } else if (style === 3) {
+          // Center (original behaviour)
+          const usable = newW - 32;
+          for (let s=0; s<sc; s++) {
+            const sx = newX + 16 + Math.floor(usable/(sc+1)*(s+1)) - 7;
+            spikes.push({x:sx, y:newY-14, w:14, h:14});
+          }
+        } else {
+          // Spread: random positions across full width with min spacing
+          const placed2 = [];
+          for (let s=0; s<sc*3 && placed2.length<sc; s++) {
+            const sx = newX + edgeOff + randInt(0, newW - 14 - edgeOff*2);
+            if (placed2.every(px => Math.abs(px-sx) > 18)) placed2.push(sx);
+          }
+          for (const sx of placed2) spikes.push({x:sx, y:newY-14, w:14, h:14});
         }
       }
     }
@@ -678,15 +701,19 @@ function resolvePlatformCollisions(p, platforms) {
   p.onGround=false;
   for (const plat of platforms) {
     if (!rectsOverlap(p,plat)) continue;
-    const oL=p.x+p.w-plat.x, oR=plat.x+plat.w-p.x;
-    const oT=p.y+p.h-plat.y, oB=plat.y+plat.h-p.y;
-    const minX=Math.min(oL,oR), minY=Math.min(oT,oB);
-    if (minY<=minX&&p.vy>=0&&oT<oB+8) {
-      p.y=plat.y-p.h; if(p.vy>2) p.landSquash=12;
-      p.vy=0; p.onGround=true; p.standingOn=plat;
-    } else if (minX<minY) {
-      p.x=oL<oR?plat.x-p.w:plat.x+plat.w; p.vx*=0.25;
-    } else { p.y=plat.y+plat.h; p.vy=0; }
+
+    // One-way platforms: only collide when falling onto the top surface.
+    // If the player's feet were ABOVE the platform top last frame → land.
+    // If the player is moving upward (jumping through) → skip entirely.
+    const playerFeetLastFrame = p.y + p.h - p.vy; // feet position before this frame's move
+    const comingFromAbove = playerFeetLastFrame <= plat.y + 2;
+
+    if (p.vy < 0 || !comingFromAbove) continue; // passing through from below or side
+
+    // Land on top
+    p.y = plat.y - p.h;
+    if (p.vy > 2) p.landSquash = 12;
+    p.vy = 0; p.onGround = true; p.standingOn = plat;
   }
 }
 
