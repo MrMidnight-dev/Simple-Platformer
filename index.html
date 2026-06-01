@@ -6,76 +6,67 @@
   <meta name="author" content="MrMidnight">
   <title>Platformer · MrMidnight</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      background: #0d0f14;
-      color: #e8eaed;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.55rem;
+      background: #0d0f14; color: #e8eaed;
       font-family: "Segoe UI", system-ui, sans-serif;
-      padding: 1rem;
-      user-select: none;
+      padding: 1rem; user-select: none;
     }
-
-    h1 {
-      font-size: 1.35rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-    }
-
+    h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: 0.04em; }
     .hud {
-      display: flex;
-      gap: 1.5rem;
-      font-size: 0.95rem;
-      font-variant-numeric: tabular-nums;
-      color: #9aa0a6;
+      display: flex; gap: 1.2rem; font-size: 0.95rem;
+      font-variant-numeric: tabular-nums; color: #9aa0a6; align-items: center;
     }
-
-    .hud strong {
-      color: #e8eaed;
-      margin-left: 0.35rem;
-    }
-
+    .hud strong { color: #e8eaed; margin-left: 0.3rem; }
+    #biomeLabel { font-size: 0.8rem; color: #6b7280; font-style: italic; }
+    .lives { display: flex; gap: 4px; align-items: center; }
+    .heart { font-size: 1rem; } .heart.lost { opacity: 0.22; }
     #game {
-      display: block;
-      border: 2px solid #2a3140;
-      border-radius: 4px;
-      background: #12151c;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-      image-rendering: pixelated;
+      display: block; border: 2px solid #2a3140; border-radius: 4px;
+      background: #12151c; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      image-rendering: pixelated; touch-action: none;
     }
-
-    .hint {
-      font-size: 0.8rem;
-      color: #6b7280;
-      text-align: center;
-      max-width: 640px;
-      line-height: 1.45;
+    .vol-row { display: flex; gap: 1.2rem; align-items: center; font-size: 0.8rem; color: #6b7280; }
+    .vol-row label { display: flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
+    .vol-row input[type=range] { width: 90px; height: 4px; accent-color: #38bdf8; cursor: pointer; }
+    .vol-val { font-variant-numeric: tabular-nums; min-width: 28px; color: #9aa0a6; }
+    .hint { font-size: 0.8rem; color: #6b7280; text-align: center; max-width: 640px; line-height: 1.45; }
+    .credit { font-size: 0.8rem; color: #6b7280; }
+    .credit a { color: #9aa0a6; text-decoration: none; }
+    .credit a:hover { color: #e8eaed; text-decoration: underline; }
+    #mobile-controls { display: none; gap: 8px; margin-top: 2px; }
+    .mob-btn {
+      width: 58px; height: 52px; background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.13); border-radius: 8px;
+      color: #cdd5e0; font-size: 1.35rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s; -webkit-tap-highlight-color: transparent;
     }
-
-    .credit {
-      font-size: 0.8rem;
-      color: #6b7280;
+    .mob-btn:active, .mob-btn.pressed { background: rgba(255,255,255,0.15); }
+    #mob-jump { width: 72px; font-size: 1.5rem; }
+    @media (pointer: coarse) { #mobile-controls { display: flex; } .hint span.kb-hint { display: none; } }
+    #canvas-wrap { position: relative; display: inline-block; line-height: 0; }
+    #overlay {
+      display: none; position: absolute; inset: 0;
+      background: rgba(13,15,20,0.9); border-radius: 4px;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.85rem; z-index: 10;
     }
-
-    .credit a {
-      color: #9aa0a6;
-      text-decoration: none;
+    #overlay.active { display: flex; }
+    #overlay h2 { font-size: 2rem; font-weight: 700; letter-spacing: 0.05em; }
+    #overlay .ov-sub   { font-size: 1rem;    color: #9aa0a6; }
+    #overlay .ov-score { font-size: 1.15rem; color: #e8eaed; }
+    #overlay .ov-record{ font-size: 0.9rem;  color: #fbbf24; }
+    #restart-btn {
+      margin-top: 0.4rem; padding: 0.6rem 2.2rem; background: #38bdf8;
+      color: #0d0f14; border: none; border-radius: 6px;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      letter-spacing: 0.03em; transition: background 0.15s, transform 0.1s;
     }
-
-    .credit a:hover {
-      color: #e8eaed;
-      text-decoration: underline;
-    }
+    #restart-btn:hover  { background: #7dd3fc; }
+    #restart-btn:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
@@ -83,620 +74,947 @@
   <div class="hud">
     <span>Level<strong id="levelDisplay">1</strong></span>
     <span>Score<strong id="scoreDisplay">0</strong></span>
+    <span>Coins<strong id="coinsDisplay">0</strong></span>
+    <span id="biomeLabel">Space</span>
+    <span class="lives">
+      <span class="heart" id="h1">❤️</span>
+      <span class="heart" id="h2">❤️</span>
+      <span class="heart" id="h3">❤️</span>
+    </span>
   </div>
-  <canvas id="game" width="800" height="480" aria-label="Platformer game"></canvas>
-  <p class="hint">← → move · ↑ jump · reach the glowing door · avoid red spikes</p>
+
+  <div id="canvas-wrap">
+    <canvas id="game" width="1100" height="540" aria-label="Platformer game"></canvas>
+    <div id="overlay">
+      <h2 id="ov-title">GAME OVER</h2>
+      <p class="ov-sub"   id="ov-sub"></p>
+      <p class="ov-score" id="ov-score"></p>
+      <p class="ov-record" id="ov-record"></p>
+      <button id="restart-btn">Play Again</button>
+    </div>
+  </div>
+
+  <div id="mobile-controls">
+    <button class="mob-btn" id="mob-left">◀</button>
+    <button class="mob-btn" id="mob-jump">▲</button>
+    <button class="mob-btn" id="mob-right">▶</button>
+  </div>
+
+  <div class="vol-row">
+    <label>🔊 SFX  <input type="range" id="volSfx"   min="0" max="100" value="40"> <span class="vol-val" id="volSfxVal">40%</span></label>
+    <label>🎵 Music <input type="range" id="volMusic" min="0" max="100" value="25"> <span class="vol-val" id="volMusicVal">25%</span></label>
+  </div>
+
+  <p class="hint"><span class="kb-hint">← → / WASD · ↑ / Space jump · </span>collect coins · reach the door · watch for moving platforms!</p>
   <p class="credit">by <a href="https://github.com/MrMidnight-dev" target="_blank" rel="noopener noreferrer">MrMidnight</a></p>
 
-  <script>
-    // =========================================================================
-    // CONFIG — world size, physics, colors (fixed camera = entire level on canvas)
-    // =========================================================================
-    const CONFIG = {
-      width: 800,
-      height: 480,
-      gravityUp: 0.2,
-      gravityFall: 0.26,
-      moveSpeed: 2.4,
-      moveAccel: 0.14,
-      groundFriction: 0.86,
-      airFriction: 0.97,
-      jumpForce: -8.6,
-      jumpCutVy: -3.8,
-      maxFallSpeed: 4.5,
-      playerSize: 28,
-      pitY: 468, // fall below this → respawn (no walkable floor across the map)
-      // Level generation constraints (keeps jumps possible between platforms)
-      platformMinW: 70,
-      platformMaxW: 130,
-      platformH: 16,
-      maxJumpX: 95,
-      maxJumpUp: 78,
-      maxDrop: 95,
-      minPlatforms: 7,
-      maxPlatforms: 10,
-      spikeChance: 0.4,
-      groundY: 420, // visual reference only
-    };
+<script>
+// =========================================================================
+// VOLUME
+// =========================================================================
+let sfxVol = 0.40, musicVol = 0.25;
+const volSfxEl = document.getElementById("volSfx");
+const volMusicEl = document.getElementById("volMusic");
+const volSfxVal = document.getElementById("volSfxVal");
+const volMusicVal = document.getElementById("volMusicVal");
+volSfxEl.addEventListener("input", () => { sfxVol = volSfxEl.value/100; volSfxVal.textContent = volSfxEl.value+"%"; });
+volMusicEl.addEventListener("input", () => {
+  musicVol = volMusicEl.value/100; volMusicVal.textContent = volMusicEl.value+"%";
+  if (musicGain) musicGain.gain.setTargetAtTime(musicVol*0.18, getAC().currentTime, 0.05);
+});
 
-    const COLORS = {
-      bg: "#12151c",
-      platform: ["#3b82f6", "#22c55e", "#a855f7", "#f59e0b", "#06b6d4"],
-      spike: "#ef4444",
-      door: "#fbbf24",
-      doorGlow: "rgba(251, 191, 36, 0.45)",
-      player: "#38bdf8",
-      spawn: "#94a3b8",
-      text: "#e8eaed",
-      death: "#f87171",
-    };
+// =========================================================================
+// AUDIO
+// =========================================================================
+let ac = null, musicGain = null, musicNodes = [];
+function getAC() {
+  if (!ac) try { ac = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){}
+  return ac;
+}
+function playTone(freq, type, dur, vol) {
+  const a = getAC(); if (!a || sfxVol===0) return;
+  const g = a.createGain(), o = a.createOscillator();
+  o.type = type; o.frequency.setValueAtTime(freq, a.currentTime);
+  g.gain.setValueAtTime(0, a.currentTime);
+  g.gain.linearRampToValueAtTime(vol*sfxVol, a.currentTime+0.008);
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime+dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime+dur+0.01);
+}
+function sfxJump()    { playTone(300,'sine',0.10,0.28); playTone(460,'sine',0.07,0.18); }
+function sfxDeath()   { playTone(200,'sine',0.22,0.30); playTone(130,'sine',0.30,0.22); }
+function sfxCoin()    { const a=getAC(); if(!a||sfxVol===0) return; [600,800,1000].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.10,0.18),i*50)); }
+function sfxWin()     { const a=getAC(); if(!a||sfxVol===0) return; [440,554,659,880].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.18,0.22),i*100)); }
+function sfxGameOver(){ const a=getAC(); if(!a||sfxVol===0) return; [330,247,196,147].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.28,0.22),i*160)); }
 
-    // =========================================================================
-    // STATE — shared game data updated each frame / on level events
-    // =========================================================================
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    const levelDisplay = document.getElementById("levelDisplay");
-    const scoreDisplay = document.getElementById("scoreDisplay");
+function startMusic() {
+  const a = getAC(); if (!a) return;
+  stopMusic();
+  musicGain = a.createGain();
+  musicGain.gain.setValueAtTime(musicVol*0.18, a.currentTime);
+  musicGain.connect(a.destination);
+  const notes = [130.8,164.8,196,246.9,261.6,196,164.8,130.8];
+  const step = 0.38; let t = a.currentTime+0.1;
+  function scheduleLoop() {
+    notes.forEach((freq,i) => {
+      const o=a.createOscillator(), g=a.createGain();
+      o.type='sine'; o.frequency.value=freq;
+      g.gain.setValueAtTime(0, t+i*step);
+      g.gain.linearRampToValueAtTime(1, t+i*step+0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t+i*step+step*0.9);
+      o.connect(g); g.connect(musicGain);
+      o.start(t+i*step); o.stop(t+i*step+step);
+      musicNodes.push(o);
+    });
+    t += notes.length*step;
+  }
+  for (let b=0;b<4;b++) scheduleLoop();
+  const id = setInterval(()=>{ if(!ac||ac.state==='closed'){clearInterval(id);return;} scheduleLoop(); }, notes.length*step*1000*0.8);
+  musicNodes.push({ stop:()=>clearInterval(id) });
+}
+function stopMusic() { musicNodes.forEach(n=>{try{n.stop&&n.stop();}catch(e){}}); musicNodes=[]; }
 
-    const keys = { left: false, right: false, up: false };
+// =========================================================================
+// BIOMES  — each defines colours, bg style, platform tints, spike shape
+// =========================================================================
+const BIOMES = {
+  space: {
+    name: "Space",
+    bg: "#0a0c12", bgStars: true, bgGrid: true,
+    pitColor: "rgba(0,0,0,0.6)",
+    platform: ["#3b82f6","#6366f1","#8b5cf6","#06b6d4","#0ea5e9"],
+    spike: "#818cf8", spikeGlow: "rgba(129,140,248,0.6)",
+    accent: "#38bdf8",
+  },
+  forest: {
+    name: "Forest",
+    bg: "#0b1a0d", bgStars: false, bgGrid: false,
+    pitColor: "rgba(5,15,5,0.7)",
+    platform: ["#16a34a","#15803d","#166534","#4ade80","#22c55e"],
+    spike: "#ef4444", spikeGlow: "rgba(239,68,68,0.5)",
+    accent: "#86efac",
+  },
+  dungeon: {
+    name: "Dungeon",
+    bg: "#100a0a", bgStars: false, bgGrid: true,
+    pitColor: "rgba(0,0,0,0.8)",
+    platform: ["#78716c","#57534e","#a8a29e","#44403c","#292524"],
+    spike: "#dc2626", spikeGlow: "rgba(220,38,38,0.6)",
+    accent: "#f97316",
+  },
+  volcano: {
+    name: "Volcano",
+    bg: "#150800", bgStars: false, bgGrid: false,
+    pitColor: "rgba(180,30,0,0.45)",
+    platform: ["#b45309","#92400e","#c2410c","#7c2d12","#f97316"],
+    spike: "#fbbf24", spikeGlow: "rgba(251,191,36,0.7)",
+    accent: "#fb923c",
+  },
+};
+const BIOME_ORDER = ["space","forest","dungeon","volcano"];
 
-    let levelNumber = 1;
-    let score = 0;
-    let level = null;
-    let player = null;
-    let deathFlash = 0;
-    let isDead = false; // prevents spike damage from firing every frame
+// =========================================================================
+// CONFIG
+// =========================================================================
+const CFG = {
+  W:1100, H:540,
+  gravUp:0.2, gravFall:0.26,
+  moveSpeed:2.4, moveAccel:0.14,
+  groundFric:0.86, airFric:0.97,
+  jumpForce:-8.6, jumpCutVy:-3.8, maxFall:4.5,
+  pSize:28, pitY:528,
+  platMinW:75, platMaxW:140, platH:16,
+  maxJumpX:98, maxJumpUp:80, maxDrop:92,
+  minPlats:5, maxPlats:8,
+  groundY:470,
+  maxLives:3, coinValue:10,
+};
 
-    // =========================================================================
-    // LEVEL GENERATION — random platforms, spikes, spawn, door (playable path)
-    // =========================================================================
+// =========================================================================
+// DIFFICULTY SCALING  — smoothly ramps from level 1 onward
+// =========================================================================
+function difficulty(lvl) {
+  const t = Math.min((lvl-1)/14, 1); // 0..1 over 15 levels
+  return {
+    spikeChance:   0.20 + t*0.45,          // 0.20 → 0.65
+    extraSpikes:   Math.floor(t*2),         // 0 → 2 extra spikes per platform
+    gapBonus:      Math.floor(t*18),        // adds to maxJumpX gap
+    movingChance:  t > 0.15 ? 0.18+t*0.3 : 0, // no movers until lvl 3
+    movingSpeed:   0.9 + t*2.2,            // px/frame
+    fallerChance:  t > 0.35 ? 0.18+t*0.2 : 0, // falling blocks from lvl 6
+    coinChance:    0.40 - t*0.12,           // slightly fewer coins at high lvl
+    extraPlats:    Math.min(Math.floor(t*3), 3), // up to 3 extra platforms
+  };
+}
 
-    /**
-     * Pick a random integer in [min, max] (inclusive).
-     */
-    function randInt(min, max) {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
+// =========================================================================
+// STATE
+// =========================================================================
+const canvas      = document.getElementById("game");
+const ctx         = canvas.getContext("2d");
+const levelDisplay = document.getElementById("levelDisplay");
+const scoreDisplay = document.getElementById("scoreDisplay");
+const coinsDisplay = document.getElementById("coinsDisplay");
+const biomeLabel   = document.getElementById("biomeLabel");
+const overlay      = document.getElementById("overlay");
+const ovTitle      = document.getElementById("ov-title");
+const ovSub        = document.getElementById("ov-sub");
+const ovScore      = document.getElementById("ov-score");
+const ovRecord     = document.getElementById("ov-record");
+const restartBtn   = document.getElementById("restart-btn");
 
-    /**
-     * Reject layouts where the exit is trivial to reach (flat run, too close, etc.).
-     */
-    function isLevelPlayable(platforms) {
-      if (platforms.length < CONFIG.minPlatforms) return false;
+const keys = { left:false, right:false, up:false };
 
-      const first = platforms[0];
-      const last = platforms[platforms.length - 1];
+let levelNumber     = 1;
+let score           = 0;
+let totalCoins      = 0;
+let lives           = CFG.maxLives;
+let record          = parseInt(localStorage.getItem("pfRecord")||"0");
+let level           = null;
+let player          = null;
+let deathFlash      = 0;
+let isDead          = false;
+let gameOver        = false;
+let levelTransition = false;
+let particles       = [];
+let stars           = [];
+let currentBiome    = BIOMES.space;
 
-      // Door must sit on the right side of the map
-      if (last.x + last.w < CONFIG.width * 0.62) return false;
+// =========================================================================
+// STARS  (only for biomes with bgStars)
+// =========================================================================
+function initStars() {
+  stars = [];
+  for (let i=0;i<65;i++) stars.push({
+    x:Math.random()*CFG.W, y:Math.random()*CFG.H*0.78,
+    r:Math.random()*1.4+0.4, alpha:Math.random()*0.45+0.12,
+    twinkle:Math.random()*Math.PI*2,
+  });
+}
+initStars();
 
-      // Need real vertical routing (not a single horizontal line of platforms)
-      let heightChanges = 0;
-      let bigGaps = 0;
-      for (let i = 1; i < platforms.length; i++) {
-        const prev = platforms[i - 1];
-        const cur = platforms[i];
-        if (Math.abs(cur.y - prev.y) >= 32) heightChanges++;
-        const gap = cur.x - (prev.x + prev.w);
-        if (gap >= 48) bigGaps++;
-      }
-      if (heightChanges < 2 || bigGaps < 1) return false;
+// =========================================================================
+// PARTICLES
+// =========================================================================
+function spawnParticles(x, y, color, count, speed) {
+  for (let i=0;i<count;i++) {
+    const angle=(Math.PI*2*i/count)+Math.random()*0.5;
+    const s=speed*(0.6+Math.random()*0.8);
+    particles.push({x,y,vx:Math.cos(angle)*s,vy:Math.sin(angle)*s-1.5,
+      life:1,decay:0.045+Math.random()*0.03,r:3+Math.random()*3,color});
+  }
+}
+function updateParticles() {
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.12;p.life-=p.decay;return p.life>0;});
+}
+function drawParticles() {
+  for (const p of particles){ctx.globalAlpha=p.life*0.9;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fill();}
+  ctx.globalAlpha=1;
+}
 
-      // Spawn and exit should not be on the same low shelf
-      if (Math.abs(first.y - last.y) < 40 && last.x - first.x < 320) return false;
+// =========================================================================
+// HUD
+// =========================================================================
+function updateLivesHud() {
+  for (let i=1;i<=CFG.maxLives;i++){const el=document.getElementById(`h${i}`);if(el)el.classList.toggle("lost",i>lives);}
+}
+function updateHud() {
+  levelDisplay.textContent=levelNumber;
+  scoreDisplay.textContent=score;
+  coinsDisplay.textContent=totalCoins;
+  biomeLabel.textContent=currentBiome.name;
+  updateLivesHud();
+}
 
-      return true;
-    }
+// =========================================================================
+// LEVEL GENERATION — biomes + difficulty + new structures
+// =========================================================================
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function randFloat(min,max){return min+Math.random()*(max-min);}
 
-    /**
-     * Build one random level: chained platforms with gaps (no full-width floor).
-     * Retries until the layout forces platforming to reach the door.
-     */
-    function tryGenerateLevel() {
-      const platforms = [];
-      const spikes = [];
+function getBiome(lvl) {
+  const idx = Math.floor((lvl-1)/4) % BIOME_ORDER.length;
+  return BIOMES[BIOME_ORDER[idx]];
+}
 
-      let x = 36;
-      let y = CONFIG.groundY - randInt(70, 130);
-      let w = randInt(95, 130);
-      platforms.push({ x, y, w, h: CONFIG.platformH, color: 0 });
+// ── Physics-based jump reach calculator ──────────────────────────────────
+// Given a starting platform, returns the box of reachable positions for
+// the next platform's top-left corner. Keeps generation honest.
+function jumpReach(diff) {
+  // Horizontal: player can travel ~maxJumpX + difficulty bonus px during a jump
+  const maxH = CFG.maxJumpX + diff.gapBonus;
+  // Vertical up: max height gain during jump
+  const maxU = CFG.maxJumpUp;
+  // Vertical down: max drop (player survives landing)
+  const maxD = CFG.maxDrop;
+  return { maxH, maxU, maxD };
+}
 
-      const count = randInt(CONFIG.minPlatforms, CONFIG.maxPlatforms);
+// ── Overlap check (with breathing room) ──────────────────────────────────
+function platsOverlap(a, b) {
+  const m = 10; // margin px
+  return a.x < b.x+b.w+m && a.x+a.w+m > b.x &&
+         a.y-40 < b.y+b.h  && a.y+b.h  > b.y-40;
+}
 
-      for (let i = 1; i < count; i++) {
-        const prev = platforms[platforms.length - 1];
-        const isLast = i === count - 1;
+// ── Spike helpers ─────────────────────────────────────────────────────────
+function maxSpikesForWidth(w) { return Math.max(0, Math.floor((w-32)/22)); }
 
-        // Wider gaps and more height change near the exit
-        const gapX = isLast
-          ? randInt(58, CONFIG.maxJumpX)
-          : i % 2 === 0
-            ? randInt(50, CONFIG.maxJumpX)
-            : randInt(32, 72);
+// ── Door clearance check ──────────────────────────────────────────────────
+// Returns true if rect r is too close to the door zone
+function nearDoor(r, door) {
+  const pad = 20;
+  return r.x < door.x+door.w+pad && r.x+r.w > door.x-pad &&
+         r.y < door.y+door.h+pad && r.y+r.h > door.y-pad;
+}
 
-        let dy;
-        if (isLast) {
-          // Exit platform: usually higher so you cannot sprint on the bottom
-          dy = randInt(-CONFIG.maxJumpUp, -25);
-        } else if (i % 3 === 0) {
-          dy = randInt(-CONFIG.maxJumpUp, -15);
-        } else {
-          dy = randInt(-CONFIG.maxJumpUp, CONFIG.maxDrop);
-        }
+// ── Layout directions ─────────────────────────────────────────────────────
+// "lr"  = left→right (classic)
+// "rl"  = right→left
+// "bu"  = bottom→up (start bottom-right, climb to top-left)
+// "mix" = left→right but with aggressive vertical variation
+const LAYOUTS = ["lr","rl","bu","mix"];
 
-        x = prev.x + prev.w + gapX;
-        y = Math.max(90, Math.min(CONFIG.groundY - 70, prev.y + dy));
-        w = randInt(CONFIG.platformMinW, CONFIG.platformMaxW);
+function pickLayout(lvl) {
+  // First 2 levels always left-right so player learns the game
+  if (lvl <= 2) return "lr";
+  return LAYOUTS[randInt(0, LAYOUTS.length-1)];
+}
 
-        if (x + w > CONFIG.width - 44) {
-          x = CONFIG.width - w - 44;
-        }
+// ── Main generation ───────────────────────────────────────────────────────
+function tryGenerateLevel(lvl) {
+  const diff  = difficulty(lvl);
+  const biome = getBiome(lvl);
+  const reach = jumpReach(diff);
+  const layout = pickLayout(lvl);
+  const platforms=[], spikes=[], coins=[], fallers=[];
 
-        platforms.push({
-          x,
-          y,
-          w,
-          h: CONFIG.platformH,
-          color: i % COLORS.platform.length,
-        });
+  const count = randInt(CFG.minPlats, CFG.maxPlats + diff.extraPlats);
 
-        if (!isLast && i > 1 && Math.random() < CONFIG.spikeChance) {
-          const spikeCount = randInt(1, 2);
-          for (let s = 0; s < spikeCount; s++) {
-            spikes.push({
-              x: x + 14 + s * 24 + randInt(0, Math.max(0, w - 44)),
-              y: y - 14,
-              w: 14,
-              h: 14,
-            });
-          }
-        }
-      }
+  // ── Determine start position by layout ──────────────────────────────
+  let curX, curY, dirX, dirY;
+  const margin = 50;
 
-      const last = platforms[platforms.length - 1];
-      const door = {
-        x: last.x + last.w / 2 - 18,
-        y: last.y - 44,
-        w: 36,
-        h: 44,
-      };
-      const spawn = {
-        x: platforms[0].x + 24,
-        y: platforms[0].y - CONFIG.playerSize,
-      };
+  if (layout === "lr") {
+    curX = margin; curY = CFG.groundY - randInt(60,110);
+    dirX =  1; dirY = 0;
+  } else if (layout === "rl") {
+    curX = CFG.W - margin - randInt(90,130); curY = CFG.groundY - randInt(60,110);
+    dirX = -1; dirY = 0;
+  } else if (layout === "bu") {
+    // Start bottom-right, door will be top-left area
+    curX = CFG.W - margin - randInt(90,130);
+    curY = CFG.groundY - randInt(40,70);   // near bottom
+    dirX = -1; dirY = -1;  // move left and generally up
+  } else { // mix
+    curX = margin; curY = CFG.groundY - randInt(60,110);
+    dirX = 1; dirY = 0;
+  }
 
-      return { platforms, spikes, spawn, door };
-    }
+  const startW = randInt(95,140);
+  platforms.push({x:curX, y:curY, w:startW, h:CFG.platH, color:0, biome});
 
-    function generateLevel() {
-      for (let attempt = 0; attempt < 40; attempt++) {
-        const candidate = tryGenerateLevel();
-        if (isLevelPlayable(candidate.platforms)) return candidate;
-      }
-      return tryGenerateLevel();
-    }
+  for (let i=1; i<count; i++) {
+    const prev   = platforms[platforms.length-1];
+    const isLast = i === count-1;
+    let newX, newY, newW;
+    let placed = false;
 
-    // =========================================================================
-    // PLAYER — movement, gravity integration, jump input
-    // =========================================================================
+    for (let attempt=0; attempt<10; attempt++) {
+      newW = randInt(CFG.platMinW, CFG.platMaxW);
 
-    function createPlayer(spawn) {
-      return {
-        x: spawn.x,
-        y: spawn.y,
-        w: CONFIG.playerSize,
-        h: CONFIG.playerSize,
-        vx: 0,
-        vy: 0,
-        onGround: false,
-        wasOnGround: false,
-        facing: 1,
-        animT: 0,
-        landSquash: 0,
-        slideDust: [],
-      };
-    }
+      let gapX, dy;
 
-    /**
-     * Horizontal: accelerate while holding keys, slide with friction when released.
-     * Vertical: softer jump arc; release ↑ early for a shorter hop.
-     */
-    function updatePlayer(p) {
-      if (keys.left) {
-        p.vx -= CONFIG.moveAccel;
-        p.facing = -1;
-      }
-      if (keys.right) {
-        p.vx += CONFIG.moveAccel;
-        p.facing = 1;
-      }
-
-      if (keys.left && keys.right) {
-        // no extra accel when both pressed
-      } else if (!keys.left && !keys.right) {
-        const friction = p.onGround ? CONFIG.groundFriction : CONFIG.airFriction;
-        p.vx *= friction;
-        if (Math.abs(p.vx) < 0.04) p.vx = 0;
-      }
-
-      if (p.vx > CONFIG.moveSpeed) p.vx = CONFIG.moveSpeed;
-      if (p.vx < -CONFIG.moveSpeed) p.vx = -CONFIG.moveSpeed;
-
-      if (keys.up && p.onGround) {
-        p.vy = CONFIG.jumpForce;
-        p.onGround = false;
-      }
-
-      if (!keys.up && p.vy < 0 && p.vy > CONFIG.jumpCutVy) {
-        p.vy = Math.max(p.vy * 0.88, CONFIG.jumpCutVy);
-      }
-
-      if (p.vy < 0) {
-        p.vy += keys.up ? CONFIG.gravityUp : CONFIG.gravityUp * 1.15;
+      if (layout === "bu") {
+        // Climb: zig-zag left/right but always going up
+        gapX = randInt(35, reach.maxH - 10);
+        dy   = isLast ? randInt(-reach.maxU, -35) : randInt(-reach.maxU, -20);
+        // Alternate sides each step to zig-zag
+        const side = (i % 2 === 0) ? 1 : -1;
+        if (dirX === -1) gapX *= side; // flip for right-to-left start
+      } else if (layout === "mix") {
+        gapX = randInt(40, reach.maxH);
+        // More aggressive vertical variation
+        dy   = isLast ? randInt(-reach.maxU, -30)
+             : randInt(-reach.maxU, reach.maxD);
       } else {
-        p.vy += CONFIG.gravityFall;
+        // Normal lr / rl
+        const gapMax = Math.min(reach.maxH, 100);
+        gapX = isLast ? randInt(55, gapMax) : randInt(38, gapMax);
+        dy   = isLast ? randInt(-reach.maxU, -25)
+             : randInt(-reach.maxU, reach.maxD);
       }
-      if (p.vy > CONFIG.maxFallSpeed) p.vy = CONFIG.maxFallSpeed;
 
-      p.x += p.vx;
-      p.y += p.vy;
-
-      if (p.x < 0) {
-        p.x = 0;
-        p.vx *= 0.35;
+      // Apply direction
+      if (layout === "bu") {
+        // zig-zag: odd steps go one way, even the other
+        const side = (i%2===0 ? 1 : -1) * (dirX < 0 ? -1 : 1);
+        newX = prev.x + side * (prev.w + Math.abs(gapX));
+      } else {
+        newX = prev.x + dirX * (prev.w + gapX);
       }
-      if (p.x + p.w > CONFIG.width) {
-        p.x = CONFIG.width - p.w;
-        p.vx *= 0.35;
+
+      newY = Math.max(78, Math.min(CFG.groundY - 68, prev.y + dy));
+
+      // Clamp to canvas
+      newX = Math.max(12, Math.min(CFG.W - newW - 12, newX));
+
+      const candidate = {x:newX, y:newY, w:newW, h:CFG.platH};
+
+      // No overlap with existing platforms
+      if (!platforms.every(p => !platsOverlap(candidate, p))) {
+        dy += 30; continue; // push down and retry
+      }
+
+      placed = true; break;
+    }
+
+    if (!placed) continue;
+
+    const platObj = {x:newX, y:newY, w:newW, h:CFG.platH, color:i%biome.platform.length, biome};
+
+    // Moving platforms: only mid-level, only if enough horizontal gap from neighbours
+    if (!isLast && i>1 && Math.random() < diff.movingChance) {
+      const axis = Math.random() < 0.6 ? "h" : "v";
+      // Safe range: never more than 40% of the gap to the previous platform
+      const gap = Math.abs(newX - (prev.x+prev.w));
+      const maxRange = axis==="h" ? Math.min(gap*0.38, 50) : 34;
+      if (maxRange >= 14) {
+        platObj.moving = {
+          axis, range: randInt(14, Math.floor(maxRange)),
+          speed: diff.movingSpeed * (0.55+Math.random()*0.7),
+          origin: axis==="h" ? newX : newY,
+          t: Math.random()*Math.PI*2,
+        };
       }
     }
 
-    /** Walk cycle, landing squash decay, slide dust when coasting to a stop */
-    function updatePlayerMotionFx(p) {
-      if (p.landSquash > 0) p.landSquash--;
+    platforms.push(platObj);
 
-      if (p.onGround && Math.abs(p.vx) > 0.35) {
-        p.animT += 0.14 + Math.abs(p.vx) * 0.04;
-      } else {
-        p.animT *= 0.85;
+    // Spikes: not on moving platforms, not too few to fit, not on last
+    if (!isLast && i>1 && !platObj.moving && Math.random() < diff.spikeChance) {
+      const maxFit = maxSpikesForWidth(newW);
+      if (maxFit >= 1) {
+        const sc = randInt(1, Math.min(1+diff.extraSpikes, maxFit));
+        const edgeMargin = 18;
+        const usable = newW - edgeMargin*2;
+        for (let s=0; s<sc; s++) {
+          const sx = newX + edgeMargin + Math.floor(usable/(sc+1)*(s+1)) - 7;
+          spikes.push({x:sx, y:newY-14, w:14, h:14});
+        }
       }
+    }
 
-      const sliding = p.onGround && !keys.left && !keys.right && Math.abs(p.vx) > 0.5;
-      if (sliding && Math.random() < 0.35) {
-        p.slideDust.push({
-          x: p.x + (p.vx > 0 ? 2 : p.w - 2),
-          y: p.y + p.h - 3,
-          life: 14,
-          drift: -p.vx * 0.25,
-        });
+    // Falling blocks: needs clear vertical space, not on last platform
+    if (!isLast && i>2 && !platObj.moving && Math.random() < diff.fallerChance) {
+      const fallerY = newY - 95;
+      const clear = fallerY > 30 && platforms.every(p =>
+        !(p.x < newX+newW && p.x+p.w > newX && Math.abs(p.y-fallerY) < 65)
+      );
+      if (clear) {
+        fallers.push({x:newX+newW/2-12, y:fallerY, w:24, h:16,
+          originY:fallerY, state:"idle", shakeT:0, vy:0});
       }
+    }
 
-      p.slideDust = p.slideDust.filter((d) => {
-        d.x += d.drift;
-        d.life--;
-        return d.life > 0;
+    // Coins: never where spikes are, never on moving platforms
+    const hasSpikeHere = spikes.some(s => s.x>=newX && s.x<newX+newW);
+    if (!isLast && !platObj.moving && !hasSpikeHere && Math.random() < diff.coinChance) {
+      const cc = randInt(1,2);
+      const sp = newW/(cc+1);
+      for (let c=0;c<cc;c++) coins.push({
+        x:newX+sp*(c+1)-7, y:newY-28, w:14, h:14,
+        collected:false, bobOffset:Math.random()*Math.PI*2,
       });
     }
+  }
 
-    function playerFellInPit(p) {
-      return p.y + p.h >= CONFIG.pitY;
+  if (platforms.length < CFG.minPlats) return null;
+
+  // ── Door on last platform, well-centered, nothing near it ───────────
+  const last = platforms[platforms.length-1];
+  const door = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
+
+  // Remove any spikes / coins / fallers that are inside or near the door
+  const filteredSpikes = spikes.filter(s => !nearDoor(s, door));
+  const filteredCoins  = coins.filter(c => !nearDoor(c, door));
+  const filteredFallers= fallers.filter(f => !nearDoor(f, door));
+
+  // Spawn at start platform, a few px from the edge
+  const first = platforms[0];
+  const spawnX = layout === "rl" || layout === "bu"
+    ? first.x + first.w - CFG.pSize - 10
+    : first.x + 14;
+  const spawn = {x:spawnX, y:first.y - CFG.pSize};
+
+  return {platforms, spikes:filteredSpikes, coins:filteredCoins,
+          fallers:filteredFallers, spawn, door, biome, layout};
+}
+
+function isLevelPlayable(lvl) {
+  // Checks done inside tryGenerateLevel via null return
+  return true;
+}
+
+function generateLevel(lvl) {
+  for (let a=0; a<80; a++) {
+    const c = tryGenerateLevel(lvl);
+    if (c && c.platforms.length >= CFG.minPlats) return c;
+  }
+  // Guaranteed fallback: simple straight level
+  const biome = getBiome(lvl);
+  const platforms=[];
+  const step = Math.floor(CFG.W / 6);
+  for (let i=0;i<6;i++) {
+    platforms.push({x:40+i*step, y:CFG.groundY-80-i*30, w:110, h:CFG.platH,
+      color:i%biome.platform.length, biome});
+  }
+  const last = platforms[platforms.length-1];
+  const door = {x:last.x+40, y:last.y-44, w:36, h:44};
+  const spawn = {x:platforms[0].x+14, y:platforms[0].y-CFG.pSize};
+  return {platforms, spikes:[], coins:[], fallers:[], spawn, door, biome, layout:"lr"};
+}
+
+// =========================================================================
+// MOVING PLATFORMS  update
+// =========================================================================
+function updateMovingPlatforms(platforms) {
+  for (const plat of platforms) {
+    if (!plat.moving) continue;
+    const m = plat.moving;
+    m.t += 0.02;
+    if (m.axis === "h") {
+      plat.x = m.origin + Math.sin(m.t) * m.range;
+    } else {
+      plat.y = m.origin + Math.sin(m.t) * m.range;
     }
+  }
+}
 
-    function resetPlayerToSpawn() {
-      player.x = level.spawn.x;
-      player.y = level.spawn.y;
-      player.vx = 0;
-      player.vy = 0;
-      player.onGround = false;
-      player.wasOnGround = false;
-      player.landSquash = 0;
-      player.slideDust = [];
-      player.animT = 0;
+// =========================================================================
+// FALLING BLOCKS  update
+// =========================================================================
+function updateFallers(fallers, player) {
+  for (const f of fallers) {
+    if (f.state === "landed") continue;
+    const distX = Math.abs((f.x+f.w/2)-(player.x+player.w/2));
+
+    if (f.state === "idle" && distX < 70 && player.y < f.y+200) {
+      f.state = "shaking"; f.shakeT = 0;
     }
-
-    // =========================================================================
-    // COLLISIONS — AABB resolution for platforms, spikes, door
-    // =========================================================================
-
-    function rectsOverlap(a, b) {
-      return (
-        a.x < b.x + b.w &&
-        a.x + a.w > b.x &&
-        a.y < b.y + b.h &&
-        a.y + a.h > b.y
-      );
+    if (f.state === "shaking") {
+      f.shakeT++;
+      if (f.shakeT > 45) { f.state = "falling"; f.vy = 0.4; }
     }
-
-    /**
-     * Resolve player vs all platforms (top landing + side blocking).
-     */
-    function resolvePlatformCollisions(p, platforms) {
-      p.onGround = false;
-
-      for (const plat of platforms) {
-        if (!rectsOverlap(p, plat)) continue;
-
-        const overlapLeft = p.x + p.w - plat.x;
-        const overlapRight = plat.x + plat.w - p.x;
-        const overlapTop = p.y + p.h - plat.y;
-        const overlapBottom = plat.y + plat.h - p.y;
-
-        const minX = Math.min(overlapLeft, overlapRight);
-        const minY = Math.min(overlapTop, overlapBottom);
-
-        // Prefer vertical resolution when falling onto a platform
-        if (minY <= minX && p.vy >= 0 && overlapTop < overlapBottom + 8) {
-          p.y = plat.y - p.h;
-          if (p.vy > 2) p.landSquash = 12;
-          p.vy = 0;
-          p.onGround = true;
-        } else if (minX < minY) {
-          if (overlapLeft < overlapRight) {
-            p.x = plat.x - p.w;
-          } else {
-            p.x = plat.x + plat.w;
-          }
-          p.vx *= 0.25;
-        } else {
-          p.y = plat.y + plat.h;
-          p.vy = 0;
-        }
-      }
+    if (f.state === "falling") {
+      f.vy += 0.35; f.y += f.vy;
+      if (f.y > CFG.H) f.state = "landed";
     }
+  }
+}
 
-    function playerHitsSpikes(p, spikes) {
-      for (const spike of spikes) {
-        if (rectsOverlap(p, spike)) return true;
-      }
-      return false;
+// =========================================================================
+// PLAYER
+// =========================================================================
+function createPlayer(spawn) {
+  return {
+    x:spawn.x, y:spawn.y, w:CFG.pSize, h:CFG.pSize,
+    vx:0, vy:0, onGround:false, wasOnGround:false,
+    facing:1, animT:0, landSquash:0, slideDust:[],
+    coyoteTime:0, jumpBuffer:0,
+    standingOn:null,   // reference to moving platform player is on
+  };
+}
+
+function updatePlayer(p) {
+  // Carry from moving platform
+  if (p.standingOn && p.standingOn.moving) {
+    const m = p.standingOn.moving;
+    if (m.axis==="h") p.x += Math.cos(m.t)*m.range*0.02*Math.abs(m.speed)*0.6;
+    else p.y += Math.cos(m.t)*m.range*0.02*Math.abs(m.speed)*0.4;
+  }
+  p.standingOn = null;
+
+  if (keys.left)  { p.vx-=CFG.moveAccel; p.facing=-1; }
+  if (keys.right) { p.vx+=CFG.moveAccel; p.facing= 1; }
+  if (!keys.left&&!keys.right) { p.vx*=p.onGround?CFG.groundFric:CFG.airFric; if(Math.abs(p.vx)<0.04)p.vx=0; }
+  p.vx=Math.max(-CFG.moveSpeed,Math.min(CFG.moveSpeed,p.vx));
+
+  if (p.onGround) p.coyoteTime=6; else if(p.coyoteTime>0) p.coyoteTime--;
+  if (keys.up) p.jumpBuffer=8; else if(p.jumpBuffer>0) p.jumpBuffer--;
+  if (p.jumpBuffer>0&&p.coyoteTime>0&&p.vy>=-1) {
+    p.vy=CFG.jumpForce; p.coyoteTime=0; p.jumpBuffer=0; sfxJump();
+  }
+  if (!keys.up&&p.vy<0&&p.vy>CFG.jumpCutVy) p.vy=Math.max(p.vy*0.88,CFG.jumpCutVy);
+  p.vy+=p.vy<0?(keys.up?CFG.gravUp:CFG.gravUp*1.15):CFG.gravFall;
+  if(p.vy>CFG.maxFall) p.vy=CFG.maxFall;
+  p.x+=p.vx; p.y+=p.vy;
+  if(p.x<0){p.x=0;p.vx*=0.35;} if(p.x+p.w>CFG.W){p.x=CFG.W-p.w;p.vx*=0.35;}
+}
+
+function updatePlayerMotionFx(p) {
+  if(p.landSquash>0) p.landSquash--;
+  if(p.onGround&&Math.abs(p.vx)>0.35) p.animT+=0.14+Math.abs(p.vx)*0.04; else p.animT*=0.85;
+  const sliding=p.onGround&&!keys.left&&!keys.right&&Math.abs(p.vx)>0.5;
+  if(sliding&&Math.random()<0.35) p.slideDust.push({x:p.x+(p.vx>0?2:p.w-2),y:p.y+p.h-3,life:14,drift:-p.vx*0.25});
+  p.slideDust=p.slideDust.filter(d=>{d.x+=d.drift;d.life--;return d.life>0;});
+}
+
+function playerFellInPit(p){ return p.y+p.h>=CFG.pitY; }
+
+function resetPlayerToSpawn() {
+  player.x=level.spawn.x; player.y=level.spawn.y;
+  player.vx=0; player.vy=0; player.onGround=false; player.wasOnGround=false;
+  player.landSquash=0; player.slideDust=[]; player.animT=0; player.coyoteTime=0; player.jumpBuffer=0;
+  player.standingOn=null;
+}
+
+// =========================================================================
+// COLLISIONS
+// =========================================================================
+function rectsOverlap(a,b){ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y; }
+
+function resolvePlatformCollisions(p, platforms) {
+  p.onGround=false;
+  for (const plat of platforms) {
+    if (!rectsOverlap(p,plat)) continue;
+    const oL=p.x+p.w-plat.x, oR=plat.x+plat.w-p.x;
+    const oT=p.y+p.h-plat.y, oB=plat.y+plat.h-p.y;
+    const minX=Math.min(oL,oR), minY=Math.min(oT,oB);
+    if (minY<=minX&&p.vy>=0&&oT<oB+8) {
+      p.y=plat.y-p.h; if(p.vy>2) p.landSquash=12;
+      p.vy=0; p.onGround=true; p.standingOn=plat;
+    } else if (minX<minY) {
+      p.x=oL<oR?plat.x-p.w:plat.x+plat.w; p.vx*=0.25;
+    } else { p.y=plat.y+plat.h; p.vy=0; }
+  }
+}
+
+function checkCoinPickups(p) {
+  for (const coin of level.coins) {
+    if (!coin.collected&&rectsOverlap(p,coin)) {
+      coin.collected=true; score+=CFG.coinValue; totalCoins++;
+      spawnParticles(coin.x+7,coin.y+7,currentBiome.accent,8,2.5);
+      sfxCoin(); updateHud();
     }
+  }
+}
 
-    function playerReachedDoor(p, door) {
-      return rectsOverlap(p, door);
+function checkFallerCollision(p, fallers) {
+  for (const f of fallers) {
+    if (f.state==="landed") continue;
+    if (rectsOverlap(p,f)) return true;
+  }
+  return false;
+}
+
+// =========================================================================
+// RENDERING
+// =========================================================================
+function drawBackground(time) {
+  const b = currentBiome;
+  ctx.fillStyle = b.bg;
+  ctx.fillRect(0,0,CFG.W,CFG.H);
+
+  if (b.bgStars) {
+    for (const s of stars) {
+      s.twinkle+=0.018;
+      ctx.globalAlpha=s.alpha*(0.7+0.3*Math.sin(s.twinkle));
+      ctx.fillStyle="#e8eaed";
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
     }
+    ctx.globalAlpha=1;
+  }
 
-    // =========================================================================
-    // RENDERING — draw level, player, HUD overlays (fixed camera = full canvas)
-    // =========================================================================
-
-    function drawBackground() {
-      ctx.fillStyle = COLORS.bg;
-      ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
-
-      // Pit area (decorative — no collision)
-      const pitGrad = ctx.createLinearGradient(0, CONFIG.groundY - 20, 0, CONFIG.height);
-      pitGrad.addColorStop(0, "rgba(15, 18, 26, 0)");
-      pitGrad.addColorStop(1, "rgba(0, 0, 0, 0.55)");
-      ctx.fillStyle = pitGrad;
-      ctx.fillRect(0, CONFIG.groundY - 20, CONFIG.width, CONFIG.height - CONFIG.groundY + 20);
-
-      // Subtle grid for depth
-      ctx.strokeStyle = "rgba(255,255,255,0.03)";
-      ctx.lineWidth = 1;
-      for (let gx = 0; gx < CONFIG.width; gx += 40) {
-        ctx.beginPath();
-        ctx.moveTo(gx, 0);
-        ctx.lineTo(gx, CONFIG.height);
-        ctx.stroke();
-      }
-      for (let gy = 0; gy < CONFIG.height; gy += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, gy);
-        ctx.lineTo(CONFIG.width, gy);
-        ctx.stroke();
-      }
+  if (b.name==="Forest") {
+    // Silhouette trees in background
+    ctx.fillStyle="rgba(10,35,10,0.55)";
+    for (let tx=20; tx<CFG.W; tx+=55) {
+      const th = 60+Math.sin(tx*0.07)*20;
+      ctx.beginPath();
+      ctx.moveTo(tx, CFG.groundY);
+      ctx.lineTo(tx+14, CFG.groundY-th);
+      ctx.lineTo(tx+28, CFG.groundY);
+      ctx.closePath(); ctx.fill();
     }
-
-    function drawPlatforms(platforms) {
-      for (const plat of platforms) {
-        const color = COLORS.platform[plat.color % COLORS.platform.length];
-        ctx.fillStyle = color;
-        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
-        ctx.fillRect(plat.x, plat.y, plat.w, 3);
-      }
+  }
+  if (b.name==="Volcano") {
+    // Lava glow at bottom
+    const g=ctx.createLinearGradient(0,CFG.groundY-10,0,CFG.H);
+    g.addColorStop(0,"rgba(180,30,0,0)"); g.addColorStop(1,"rgba(255,80,0,0.38)");
+    ctx.fillStyle=g; ctx.fillRect(0,CFG.groundY-10,CFG.W,CFG.H-CFG.groundY+10);
+    // Floating embers
+    for (const s of stars) {
+      const flicker=0.5+0.5*Math.sin(s.twinkle*1.3+time*0.001);
+      ctx.globalAlpha=s.alpha*flicker*0.6;
+      ctx.fillStyle="#fb923c";
+      ctx.beginPath(); ctx.arc(s.x,CFG.H-s.y*0.5,s.r*0.8,0,Math.PI*2); ctx.fill();
     }
-
-    function drawSpikes(spikes) {
-      for (const spike of spikes) {
-        ctx.fillStyle = COLORS.spike;
-        ctx.beginPath();
-        ctx.moveTo(spike.x + spike.w / 2, spike.y);
-        ctx.lineTo(spike.x + spike.w, spike.y + spike.h);
-        ctx.lineTo(spike.x, spike.y + spike.h);
-        ctx.closePath();
-        ctx.fill();
-      }
+    ctx.globalAlpha=1;
+  }
+  if (b.name==="Dungeon") {
+    // Stone wall pattern
+    ctx.strokeStyle="rgba(255,255,255,0.025)"; ctx.lineWidth=1;
+    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.W,gy);ctx.stroke();}
+    for (let row=0;row<CFG.H/40;row++) {
+      const off=(row%2)*20;
+      for (let gx=off;gx<CFG.W;gx+=40){ctx.beginPath();ctx.moveTo(gx,row*40);ctx.lineTo(gx,row*40+40);ctx.stroke();}
     }
-
-    function drawSpawn(spawn) {
-      ctx.strokeStyle = COLORS.spawn;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(spawn.x - 4, spawn.y - 4, CONFIG.playerSize + 8, CONFIG.playerSize + 8);
-      ctx.setLineDash([]);
+    // Torches
+    for (let tx=80;tx<CFG.W;tx+=160) {
+      const fl=0.7+0.3*Math.sin(time*0.007+tx);
+      ctx.globalAlpha=fl*0.18;
+      ctx.fillStyle="#f97316";
+      ctx.beginPath(); ctx.arc(tx,60,18,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.fillStyle="#f97316";
+      ctx.fillRect(tx-3,52,6,14);
+      ctx.fillStyle="#fbbf24";
+      ctx.beginPath(); ctx.moveTo(tx,48); ctx.lineTo(tx+5,58); ctx.lineTo(tx-5,58); ctx.closePath(); ctx.fill();
     }
+  }
+  if (b.bgGrid) {
+    ctx.strokeStyle="rgba(255,255,255,0.022)"; ctx.lineWidth=1;
+    for (let gx=0;gx<CFG.W;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,CFG.H);ctx.stroke();}
+    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.W,gy);ctx.stroke();}
+  }
 
-    /** Glowing exit door — pulse uses time for animation */
-    function drawDoor(door, time) {
-      const pulse = 0.5 + 0.5 * Math.sin(time * 0.006);
+  // Pit gradient
+  const pitG=ctx.createLinearGradient(0,CFG.groundY-20,0,CFG.H);
+  pitG.addColorStop(0,"rgba(0,0,0,0)"); pitG.addColorStop(1,b.pitColor);
+  ctx.fillStyle=pitG; ctx.fillRect(0,CFG.groundY-20,CFG.W,CFG.H-CFG.groundY+20);
+}
 
-      ctx.shadowColor = COLORS.door;
-      ctx.shadowBlur = 12 + pulse * 16;
-      ctx.fillStyle = COLORS.doorGlow;
-      ctx.fillRect(door.x - 6, door.y - 6, door.w + 12, door.h + 12);
-
-      ctx.fillStyle = COLORS.door;
-      ctx.fillRect(door.x, door.y, door.w, door.h);
-
-      ctx.fillStyle = "#1a1408";
-      ctx.fillRect(door.x + 10, door.y + 8, door.w - 20, door.h - 16);
-
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + pulse * 0.4})`;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(door.x, door.y, door.w, door.h);
+function drawPlatforms(platforms) {
+  for (const plat of platforms) {
+    const b = plat.biome || currentBiome;
+    const col = b.platform[plat.color % b.platform.length];
+    ctx.fillStyle=col;
+    ctx.fillRect(plat.x,plat.y,plat.w,plat.h);
+    // Highlight
+    ctx.fillStyle="rgba(255,255,255,0.14)";
+    ctx.fillRect(plat.x,plat.y,plat.w,3);
+    // Moving platform indicator — pulsing edges
+    if (plat.moving) {
+      ctx.strokeStyle="rgba(255,255,255,0.35)";
+      ctx.lineWidth=1;
+      ctx.strokeRect(plat.x,plat.y,plat.w,plat.h);
     }
+  }
+}
 
-    function drawSlideDust(p) {
-      for (const d of p.slideDust) {
-        const alpha = d.life / 14;
-        ctx.fillStyle = `rgba(148, 163, 184, ${alpha * 0.5})`;
-        ctx.fillRect(d.x, d.y, 4, 3);
-      }
+function drawSpikes(spikes) {
+  const b = currentBiome;
+  ctx.shadowColor = b.spikeGlow; ctx.shadowBlur = 6;
+  ctx.fillStyle = b.spike;
+  for (const s of spikes) {
+    ctx.beginPath();
+    ctx.moveTo(s.x+s.w/2, s.y);
+    ctx.lineTo(s.x+s.w, s.y+s.h);
+    ctx.lineTo(s.x, s.y+s.h);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.shadowBlur=0;
+}
+
+function drawFallers(fallers, time) {
+  for (const f of fallers) {
+    if (f.state==="landed") continue;
+    let dx=f.x;
+    if (f.state==="shaking") dx+=Math.sin(f.shakeT*1.2)*2.5;
+    // Warning line (shadow on ground below)
+    if (f.state==="idle"||f.state==="shaking") {
+      ctx.fillStyle="rgba(239,68,68,0.18)";
+      ctx.fillRect(f.x-4, CFG.groundY-4, f.w+8, 6);
     }
+    // The block itself
+    const flash = f.state==="shaking" ? (Math.floor(f.shakeT/5)%2===0?1:0.5) : 1;
+    ctx.globalAlpha=flash;
+    ctx.fillStyle= f.state==="falling" ? "#dc2626" : "#b91c1c";
+    ctx.fillRect(dx, f.y, f.w, f.h);
+    ctx.fillStyle="rgba(255,255,255,0.2)";
+    ctx.fillRect(dx,f.y,f.w,3);
+    ctx.globalAlpha=1;
+  }
+}
 
-    /** Squash / stretch + lean for smoother motion feel */
-    function drawPlayer(p) {
-      let dw = p.w;
-      let dh = p.h;
-      let dx = p.x;
-      let dy = p.y;
+function drawCoins(coins, time) {
+  for (const coin of coins) {
+    if (coin.collected) continue;
+    const bob=Math.sin(time*0.003+coin.bobOffset)*3;
+    const cx=coin.x+7, cy=coin.y+7+bob;
+    ctx.shadowColor="rgba(251,191,36,0.55)"; ctx.shadowBlur=8;
+    ctx.fillStyle="#fbbf24";
+    ctx.beginPath(); ctx.arc(cx,cy,7,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle="rgba(255,255,255,0.45)";
+    ctx.beginPath(); ctx.arc(cx-2,cy-2,2.5,0,Math.PI*2); ctx.fill();
+  }
+}
 
-      if (p.vy < -0.8) {
-        dh = p.h * 0.9;
-        dw = p.w * 1.07;
-        dy += p.h - dh;
-      } else if (p.vy > 0.8) {
-        dh = p.h * 1.06;
-        dw = p.w * 0.93;
-        dy -= dh - p.h;
-      }
+function drawSpawn(spawn) {
+  ctx.strokeStyle="#94a3b8"; ctx.lineWidth=2; ctx.setLineDash([4,4]);
+  ctx.strokeRect(spawn.x-4,spawn.y-4,CFG.pSize+8,CFG.pSize+8);
+  ctx.setLineDash([]);
+}
 
-      if (p.landSquash > 0) {
-        const s = 1 + p.landSquash * 0.018;
-        dw *= s;
-        dh /= s;
-        dy += p.h - dh;
-      }
+function drawDoor(door, time) {
+  const pulse=0.5+0.5*Math.sin(time*0.006);
+  ctx.shadowColor=currentBiome.accent; ctx.shadowBlur=12+pulse*16;
+  ctx.fillStyle="rgba(251,191,36,0.4)";
+  ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
+  ctx.fillStyle="#fbbf24";
+  ctx.fillRect(door.x,door.y,door.w,door.h);
+  ctx.fillStyle="#1a1408";
+  ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
+  ctx.shadowBlur=0;
+  ctx.strokeStyle=`rgba(255,255,255,${0.3+pulse*0.4})`; ctx.lineWidth=2;
+  ctx.strokeRect(door.x,door.y,door.w,door.h);
+}
 
-      if (p.onGround && Math.abs(p.vx) > 0.12) {
-        dy += Math.sin(p.animT) * 1.8;
-      }
+function drawPlayer(p) {
+  let dw=p.w,dh=p.h,dx=p.x,dy=p.y;
+  if(p.vy<-0.8){dh=p.h*0.9;dw=p.w*1.07;dy+=p.h-dh;}
+  else if(p.vy>0.8){dh=p.h*1.06;dw=p.w*0.93;dy-=dh-p.h;}
+  if(p.landSquash>0){const s=1+p.landSquash*0.018;dw*=s;dh/=s;dy+=p.h-dh;}
+  if(p.onGround&&Math.abs(p.vx)>0.12) dy+=Math.sin(p.animT)*1.8;
+  const lean=Math.max(-0.14,Math.min(0.14,p.vx*0.055));
+  for(const d of p.slideDust){ctx.fillStyle=`rgba(148,163,184,${(d.life/14)*0.5})`;ctx.fillRect(d.x,d.y,4,3);}
+  ctx.save();
+  ctx.translate(dx+dw/2,dy+dh); ctx.rotate(lean);
+  ctx.fillStyle=deathFlash>0?"#f87171":"#38bdf8";
+  ctx.fillRect(-dw/2,-dh,dw,dh);
+  ctx.fillStyle="rgba(255,255,255,0.35)";
+  ctx.fillRect(p.facing>0?4:-12,-dh+6,8,8);
+  ctx.restore();
+}
 
-      const lean = Math.max(-0.14, Math.min(0.14, p.vx * 0.055));
-      const cx = dx + dw / 2;
-      const cy = dy + dh;
+function render(time) {
+  drawBackground(time);
+  drawPlatforms(level.platforms);
+  drawFallers(level.fallers, time);
+  drawSpikes(level.spikes);
+  drawCoins(level.coins, time);
+  drawSpawn(level.spawn);
+  drawDoor(level.door, time);
+  drawPlayer(player);
+  drawParticles();
+  if(deathFlash>0){ctx.fillStyle=`rgba(239,68,68,${deathFlash*0.32})`;ctx.fillRect(0,0,CFG.W,CFG.H);}
+}
 
-      drawSlideDust(p);
+// =========================================================================
+// GAME FLOW
+// =========================================================================
+function startLevel(advance) {
+  levelTransition=false; isDead=false; deathFlash=0;
+  if (advance) { levelNumber++; score+=50; }
+  level = generateLevel(levelNumber);
+  currentBiome = level.biome;
+  player = createPlayer(level.spawn);
+  updateHud();
+}
 
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(lean);
-      ctx.fillStyle = deathFlash > 0 ? COLORS.death : COLORS.player;
-      ctx.fillRect(-dw / 2, -dh, dw, dh);
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      const eyeX = p.facing > 0 ? 4 : -12;
-      ctx.fillRect(eyeX, -dh + 6, 8, 8);
-      ctx.restore();
-    }
+function killPlayer() {
+  if (isDead||levelTransition) return;
+  isDead=true; deathFlash=1; lives--;
+  updateHud();
+  spawnParticles(player.x+player.w/2,player.y+player.h/2,"#f87171",14,3);
+  sfxDeath();
+  if(lives<=0){setTimeout(showGameOver,420);return;}
+  setTimeout(()=>{resetPlayerToSpawn();deathFlash=0;isDead=false;},380);
+}
 
-    function render(time) {
-      drawBackground();
-      drawPlatforms(level.platforms);
-      drawSpikes(level.spikes);
-      drawSpawn(level.spawn);
-      drawDoor(level.door, time);
-      drawPlayer(player);
+function completeLevel() {
+  if(levelTransition||isDead) return;
+  levelTransition=true;
+  sfxWin();
+  spawnParticles(level.door.x+18,level.door.y+22,currentBiome.accent,20,3.5);
+  setTimeout(()=>{ctx.fillStyle=currentBiome.bg;ctx.fillRect(0,0,CFG.W,CFG.H);startLevel(true);},320);
+}
 
-      if (deathFlash > 0) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${deathFlash * 0.35})`;
-        ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
-      }
-    }
+function showGameOver() {
+  gameOver=true;
+  if(score>record){record=score;localStorage.setItem("pfRecord",record);}
+  ovTitle.textContent="GAME OVER"; ovTitle.style.color="#f87171";
+  ovSub.textContent=`You reached level ${levelNumber} · ${currentBiome.name}`;
+  ovScore.textContent=`Score: ${score}  ·  Coins: ${totalCoins}`;
+  ovRecord.textContent=`Best: ${record}`;
+  overlay.classList.add("active");
+  sfxGameOver();
+}
 
-    // =========================================================================
-    // GAME FLOW — start level, death, advance stage, UI updates
-    // =========================================================================
+function fullRestart() {
+  gameOver=false;isDead=false;deathFlash=0;levelTransition=false;
+  lives=CFG.maxLives;levelNumber=1;score=0;totalCoins=0;particles=[];
+  overlay.classList.remove("active");
+  startLevel(false);
+}
+restartBtn.addEventListener("click",fullRestart);
 
-    function updateHud() {
-      levelDisplay.textContent = levelNumber;
-      scoreDisplay.textContent = score;
-    }
+// =========================================================================
+// MAIN LOOP
+// =========================================================================
+function gameLoop(time) {
+  if (!gameOver && !levelTransition) {
+    player.wasOnGround=player.onGround;
+    updateMovingPlatforms(level.platforms);
+    updatePlayer(player);
+    resolvePlatformCollisions(player,level.platforms);
+    if(player.onGround&&!player.wasOnGround) player.landSquash=Math.max(player.landSquash,10);
+    updatePlayerMotionFx(player);
+    updateParticles();
+    checkCoinPickups(player);
+    updateFallers(level.fallers, player);
 
-    /** Load a fresh random layout; optional: keep score / bump level number */
-    function startLevel(advance = false) {
-      if (advance) {
-        score++;
-        levelNumber++;
-      }
-      level = generateLevel();
-      player = createPlayer(level.spawn);
-      deathFlash = 0;
-      updateHud();
-    }
+    if      (playerFellInPit(player))                            killPlayer();
+    else if (!isDead&&level.spikes.some(s=>rectsOverlap(player,s))) killPlayer();
+    else if (!isDead&&checkFallerCollision(player,level.fallers))   killPlayer();
+    else if (!isDead&&rectsOverlap(player,level.door))              completeLevel();
 
-    function killPlayer() {
-      if (isDead) return;
-      isDead = true;
-      deathFlash = 1;
-      setTimeout(() => {
-        resetPlayerToSpawn();
-        deathFlash = 0;
-        isDead = false;
-      }, 350);
-    }
+    if(deathFlash>0) deathFlash=Math.max(0,deathFlash-0.08);
+  } else if (!gameOver&&levelTransition) {
+    updateParticles();
+  }
+  if (!levelTransition||gameOver) render(time);
+  else if (particles.length>0) {
+    ctx.fillStyle=currentBiome.bg; ctx.fillRect(0,0,CFG.W,CFG.H);
+    drawParticles();
+  }
+  requestAnimationFrame(gameLoop);
+}
 
-    function completeLevel() {
-      startLevel(true);
-    }
+// =========================================================================
+// INPUT
+// =========================================================================
+window.addEventListener("keydown",e=>{
+  if(e.code==="ArrowLeft" ||e.code==="KeyA") keys.left =true;
+  if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=true;
+  if(e.code==="ArrowUp"   ||e.code==="KeyW"||e.code==="Space") keys.up=true;
+  if(["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) e.preventDefault();
+});
+window.addEventListener("keyup",e=>{
+  if(e.code==="ArrowLeft" ||e.code==="KeyA") keys.left =false;
+  if(e.code==="ArrowRight"||e.code==="KeyD") keys.right=false;
+  if(e.code==="ArrowUp"   ||e.code==="KeyW"||e.code==="Space") keys.up=false;
+});
+function bindMob(id,key){
+  const el=document.getElementById(id);if(!el)return;
+  const on =e=>{e.preventDefault();keys[key]=true; el.classList.add("pressed");};
+  const off=e=>{e.preventDefault();keys[key]=false;el.classList.remove("pressed");};
+  el.addEventListener("touchstart", on, {passive:false});
+  el.addEventListener("touchend",   off,{passive:false});
+  el.addEventListener("touchcancel",off,{passive:false});
+  el.addEventListener("mousedown",on);el.addEventListener("mouseup",off);el.addEventListener("mouseleave",off);
+}
+bindMob("mob-left","left"); bindMob("mob-right","right"); bindMob("mob-jump","up");
 
-    // =========================================================================
-    // MAIN LOOP
-    // =========================================================================
+document.addEventListener("pointerdown",()=>{getAC();startMusic();},{once:true});
 
-    let lastTime = 0;
-
-    function gameLoop(time) {
-      player.wasOnGround = player.onGround;
-      updatePlayer(player);
-      resolvePlatformCollisions(player, level.platforms);
-
-      if (player.onGround && !player.wasOnGround) {
-        player.landSquash = Math.max(player.landSquash, 10);
-      }
-      updatePlayerMotionFx(player);
-
-      if (playerFellInPit(player)) {
-        killPlayer();
-      } else if (playerHitsSpikes(player, level.spikes)) {
-        killPlayer();
-      } else if (playerReachedDoor(player, level.door)) {
-        completeLevel();
-      }
-
-      if (deathFlash > 0) deathFlash = Math.max(0, deathFlash - 0.08);
-
-      render(time);
-      lastTime = time;
-      requestAnimationFrame(gameLoop);
-    }
-
-    // =========================================================================
-    // INPUT
-    // =========================================================================
-
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "ArrowLeft") keys.left = true;
-      if (e.code === "ArrowRight") keys.right = true;
-      if (e.code === "ArrowUp") keys.up = true;
-      if (["ArrowLeft", "ArrowRight", "ArrowUp", "Space"].includes(e.code)) {
-        e.preventDefault();
-      }
-    });
-
-    window.addEventListener("keyup", (e) => {
-      if (e.code === "ArrowLeft") keys.left = false;
-      if (e.code === "ArrowRight") keys.right = false;
-      if (e.code === "ArrowUp") keys.up = false;
-    });
-
-    // =========================================================================
-    // BOOT
-    // =========================================================================
-    startLevel(false);
-    requestAnimationFrame(gameLoop);
-  </script>
+// =========================================================================
+// BOOT
+// =========================================================================
+startLevel(false);
+requestAnimationFrame(gameLoop);
+</script>
 </body>
 </html>
