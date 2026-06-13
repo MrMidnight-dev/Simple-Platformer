@@ -13,11 +13,13 @@
       background: #0d0f14; color: #e8eaed;
       font-family: "Segoe UI", system-ui, sans-serif;
       padding: 1rem; user-select: none;
+      width: 100%;
     }
     h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: 0.04em; }
     .hud {
       display: flex; gap: 1.2rem; font-size: 0.95rem;
       font-variant-numeric: tabular-nums; color: #9aa0a6; align-items: center;
+      flex-wrap: wrap; justify-content: center; max-width: 100%;
     }
     .hud strong { color: #e8eaed; margin-left: 0.3rem; }
     #biomeLabel { font-size: 0.8rem; color: #6b7280; font-style: italic; }
@@ -27,6 +29,7 @@
       display: block; border: 2px solid #2a3140; border-radius: 4px;
       background: #12151c; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
       image-rendering: pixelated; touch-action: none;
+      max-width: 100%; height: auto; /* scale down to fit viewport */
     }
     .vol-row { display: flex; gap: 1.2rem; align-items: center; font-size: 0.8rem; color: #6b7280; }
     .vol-row label { display: flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
@@ -47,7 +50,7 @@
     .mob-btn:active, .mob-btn.pressed { background: rgba(255,255,255,0.15); }
     #mob-jump { width: 72px; font-size: 1.5rem; }
     @media (pointer: coarse) { #mobile-controls { display: flex; } .hint span.kb-hint { display: none; } }
-    #canvas-wrap { position: relative; display: inline-block; line-height: 0; }
+    #canvas-wrap { position: relative; display: inline-block; line-height: 0; max-width: 100%; }
     #overlay {
       display: none; position: absolute; inset: 0;
       background: rgba(13,15,20,0.9); border-radius: 4px;
@@ -118,6 +121,35 @@
     /* ── Shield pip in HUD ── */
     #shield-pip { display: none; font-size: 1rem; }
     #shield-pip.active { display: inline; }
+
+    /* ── Key indicator in HUD ── */
+    #key-indicator { display: none; font-size: 1rem; filter: grayscale(1) opacity(0.4); }
+    #key-indicator.active { display: inline; filter: none; animation: keyPulse 1.4s ease-in-out infinite; }
+    @keyframes keyPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+
+    /* ── Small / portrait screens — game fills viewport width ── */
+    @media (max-width: 760px) {
+      body { padding: 0.5rem; gap: 0.4rem; }
+      h1 { font-size: 1.1rem; }
+      .hud { font-size: 0.8rem; gap: 0.6rem; }
+      #biomeLabel { display: none; } /* save space */
+      .hint, .credit, .vol-row { font-size: 0.7rem; }
+      .vol-row { gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+      .vol-row input[type=range] { width: 70px; }
+      #canvas-wrap, #game { width: 100%; }
+    }
+
+    /* ── Landscape on short viewports — limit height instead of width ── */
+    @media (orientation: landscape) and (max-height: 480px) {
+      body { padding: 0.3rem; gap: 0.25rem; }
+      h1 { display: none; }
+      .hud { font-size: 0.75rem; gap: 0.5rem; }
+      .hint { display: none; }
+      .credit { display: none; }
+      .vol-row { font-size: 0.65rem; gap: 0.5rem; }
+      #canvas-wrap, #game { max-height: 78vh; width: auto; }
+      #game { max-width: 100%; height: 78vh; width: auto; }
+    }
   </style>
 </head>
 <body>
@@ -128,6 +160,7 @@
     <span>🪙<strong id="coinsDisplay">0</strong></span>
     <span id="biomeLabel">Space</span>
     <span id="shield-pip">🛡</span>
+    <span id="key-indicator">🔑</span>
     <button id="skip-btn" title="Use skip token" style="display:none;background:rgba(251,191,36,0.15);border:1.5px solid #fbbf24;color:#fbbf24;border-radius:6px;padding:0.18rem 0.55rem;font-size:0.8rem;cursor:pointer;line-height:1.3;">⏭ Skip (<span id="skipCount">0</span>)</button>
     <span class="lives">
       <span class="heart" id="h1">❤️</span>
@@ -336,7 +369,8 @@ const BIOME_ORDER = ["space","forest","dungeon","volcano"];
 // CONFIG
 // =========================================================================
 const CFG = {
-  W:1100, H:540,
+  VW:1100, H:540,        // viewport (visible) size
+  W:2640,                 // world width — ~2.4x viewport, scrolls with camera
   gravUp:0.2, gravFall:0.26,
   moveSpeed:2.4, moveAccel:0.14,
   groundFric:0.86, airFric:0.97,
@@ -344,7 +378,7 @@ const CFG = {
   pSize:28, pitY:528,
   platMinW:75, platMaxW:140, platH:16,
   maxJumpX:98, maxJumpUp:80, maxDrop:92,
-  minPlats:5, maxPlats:8,
+  minPlats:11, maxPlats:16,   // more platforms to fill the wider world
   groundY:470,
   maxLives:3, coinValue:10,
 };
@@ -413,13 +447,16 @@ let timerActive     = false;
 // ── Active buffs ──────────────────────────────────────────────────────────
 let hasShield       = false;  // absorb one hit
 
+// ── Camera ────────────────────────────────────────────────────────────────
+let cameraX = 0; // world-space X of the viewport's left edge
+
 // =========================================================================
 // STARS  (only for biomes with bgStars)
 // =========================================================================
 function initStars() {
   stars = [];
-  for (let i=0;i<65;i++) stars.push({
-    x:Math.random()*CFG.W, y:Math.random()*CFG.H*0.78,
+  for (let i=0;i<160;i++) stars.push({
+    x:Math.random()*CFG.W, y:Math.random()*CFG.H*0.78, // world-space, drawn with camera offset
     r:Math.random()*1.4+0.4, alpha:Math.random()*0.45+0.12,
     twinkle:Math.random()*Math.PI*2,
   });
@@ -707,11 +744,31 @@ function tryGenerateLevel(lvl) {
     ? {x: first.x - 24, y: first.y - 120, w: 24, h: 120}   // left side
     : {x: first.x + first.w, y: first.y - 120, w: 24, h: 120}; // right side
 
+  // ── Key & locked door ────────────────────────────────────────────────
+  // Place a key on a mid-level platform (not first/last/door column).
+  // A solid invisible wall covers the door until the key is collected.
+  let key = null;
+  const candidates = cleanPlatforms
+    .map((p, idx) => ({p, idx}))
+    .filter(({p, idx}) => idx !== 0 && idx !== cleanPlatforms.length-1 && !nearDoor(p, door));
+
+  if (candidates.length > 0) {
+    const choice = candidates[randInt(0, candidates.length-1)].p;
+    key = {
+      x: choice.x + choice.w/2 - 9, y: choice.y - 30,
+      w: 18, h: 18, collected: false,
+      bobOffset: Math.random()*Math.PI*2,
+    };
+  }
+
+  // Door wall: a solid barrier in front of the door, removed once key collected
+  const doorWall = {x: door.x-2, y: door.y-2, w: door.w+4, h: door.h+4};
+
   // Final reachability guard — BFS on the cleaned platform list
   if (!isReachable(cleanPlatforms, diff)) return null;
 
   return {platforms:cleanPlatforms, spikes:filteredSpikes, coins:filteredCoins,
-          fallers:[], spawn, spawnWall, door, biome, layout};
+          fallers:[], spawn, spawnWall, door, doorWall, key, biome, layout};
 }
 
 // ── Reachability check ───────────────────────────────────────────────────
@@ -757,15 +814,15 @@ function generateLevel(lvl) {
     if (!c || c.platforms.length < CFG.minPlats) continue;
     if (isReachable(c.platforms, diff)) return c;
   }
-  // Guaranteed fallback — evenly spaced, always reachable
+  // Guaranteed fallback — evenly spaced, always reachable, spans the world
   const biome = getBiome(lvl);
   const platforms=[];
-  const n = 6;
-  const stepX = Math.floor((CFG.W - 100) / (n-1));
+  const stepX = 78; // within jump range
+  const n = Math.floor((CFG.W - 100) / stepX);
   for (let i=0;i<n;i++) {
     platforms.push({
       x: 40 + i*stepX,
-      y: CFG.groundY - 80 - i*28,
+      y: CFG.groundY - 80 - (i%4)*28,
       w: 110, h: CFG.platH,
       color: i%biome.platform.length, biome
     });
@@ -774,7 +831,19 @@ function generateLevel(lvl) {
   const door  = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
   const spawn = {x:platforms[0].x+14, y:platforms[0].y-CFG.pSize};
   const fbWall = {x: platforms[0].x - 24, y: platforms[0].y - 120, w: 24, h: 120};
-  return {platforms, spikes:[], coins:[], fallers:[], spawn, spawnWall:fbWall, door, biome, layout:"lr"};
+  return {platforms, spikes:[], coins:[], fallers:[], spawn, spawnWall:fbWall, door, doorWall:null, key:null, biome, layout:"lr"};
+}
+
+// =========================================================================
+// CAMERA
+// =========================================================================
+function updateCamera() {
+  // Target: center player horizontally in viewport
+  const targetX = player.x + player.w/2 - CFG.VW/2;
+  // Smooth follow
+  cameraX += (targetX - cameraX) * 0.12;
+  // Clamp to world bounds
+  cameraX = Math.max(0, Math.min(CFG.W - CFG.VW, cameraX));
 }
 
 // =========================================================================
@@ -850,6 +919,7 @@ function resetPlayerToSpawn() {
   player.vx=0; player.vy=0; player.onGround=false; player.wasOnGround=false;
   player.landSquash=0; player.slideDust=[]; player.animT=0; player.coyoteTime=0; player.jumpBuffer=0;
   player.prevY=player.y; player.standingOn=null;
+  cameraX = Math.max(0, Math.min(CFG.W - CFG.VW, player.x + player.w/2 - CFG.VW/2));
 }
 
 // =========================================================================
@@ -866,6 +936,22 @@ function resolveWallCollision(p, wall) {
   if (overlapLeft < overlapRight) { p.x = wall.x - p.w; }
   else                            { p.x = wall.x + wall.w; }
   p.vx = 0;
+}
+
+// Solid block on all 4 sides — used for the locked door barrier
+function resolveSolidCollision(p, box) {
+  if (!box) return;
+  if (!rectsOverlap(p, box)) return;
+  const oL = p.x+p.w - box.x,  oR = box.x+box.w - p.x;
+  const oT = p.y+p.h - box.y,  oB = box.y+box.h - p.y;
+  const minX = Math.min(oL, oR), minY = Math.min(oT, oB);
+  if (minX < minY) {
+    p.x = oL < oR ? box.x - p.w : box.x + box.w;
+    p.vx = 0;
+  } else {
+    if (oT < oB) { p.y = box.y - p.h; if (p.vy>2) p.landSquash=12; p.vy = Math.max(0,p.vy); p.onGround = p.vy===0 || p.onGround; }
+    else         { p.y = box.y + box.h; p.vy = Math.min(0,p.vy); }
+  }
 }
 
 function resolvePlatformCollisions(p, platforms) {
@@ -894,6 +980,17 @@ function checkCoinPickups(p) {
   }
 }
 
+function checkKeyPickup(p) {
+  const key = level.key;
+  if (!key || key.collected) return;
+  if (rectsOverlap(p, key)) {
+    key.collected = true;
+    spawnParticles(key.x+9, key.y+9, "#fbbf24", 16, 3);
+    sfxWin();
+    keyIndicator.classList.add("active");
+  }
+}
+
 
 // =========================================================================
 // RENDERING
@@ -901,23 +998,30 @@ function checkCoinPickups(p) {
 function drawBackground(time) {
   const b = currentBiome;
   ctx.fillStyle = b.bg;
-  ctx.fillRect(0,0,CFG.W,CFG.H);
+  ctx.fillRect(0,0,CFG.VW,CFG.H);
+
+  // Parallax offset — background elements scroll slower than the world (0.4x)
+  const px = cameraX * 0.4;
 
   if (b.bgStars) {
     for (const s of stars) {
       s.twinkle+=0.018;
+      const sx = s.x - px;
+      if (sx < -10 || sx > CFG.VW+10) continue;
       ctx.globalAlpha=s.alpha*(0.7+0.3*Math.sin(s.twinkle));
       ctx.fillStyle="#e8eaed";
-      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,s.y,s.r,0,Math.PI*2); ctx.fill();
     }
     ctx.globalAlpha=1;
   }
 
   if (b.name==="Forest") {
-    // Silhouette trees in background
+    // Silhouette trees — span the world, parallax scrolled
     ctx.fillStyle="rgba(10,35,10,0.55)";
-    for (let tx=20; tx<CFG.W; tx+=55) {
-      const th = 60+Math.sin(tx*0.07)*20;
+    const start = Math.floor(px/55)*55 - 55;
+    for (let wx=start; wx<px+CFG.VW+55; wx+=55) {
+      const tx = wx - px;
+      const th = 60+Math.sin(wx*0.07)*20;
       ctx.beginPath();
       ctx.moveTo(tx, CFG.groundY);
       ctx.lineTo(tx+14, CFG.groundY-th);
@@ -929,27 +1033,32 @@ function drawBackground(time) {
     // Lava glow at bottom
     const g=ctx.createLinearGradient(0,CFG.groundY-10,0,CFG.H);
     g.addColorStop(0,"rgba(180,30,0,0)"); g.addColorStop(1,"rgba(255,80,0,0.38)");
-    ctx.fillStyle=g; ctx.fillRect(0,CFG.groundY-10,CFG.W,CFG.H-CFG.groundY+10);
+    ctx.fillStyle=g; ctx.fillRect(0,CFG.groundY-10,CFG.VW,CFG.H-CFG.groundY+10);
     // Floating embers
     for (const s of stars) {
+      const sx = s.x - px;
+      if (sx < -10 || sx > CFG.VW+10) continue;
       const flicker=0.5+0.5*Math.sin(s.twinkle*1.3+time*0.001);
       ctx.globalAlpha=s.alpha*flicker*0.6;
       ctx.fillStyle="#fb923c";
-      ctx.beginPath(); ctx.arc(s.x,CFG.H-s.y*0.5,s.r*0.8,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,CFG.H-s.y*0.5,s.r*0.8,0,Math.PI*2); ctx.fill();
     }
     ctx.globalAlpha=1;
   }
   if (b.name==="Dungeon") {
-    // Stone wall pattern
+    // Stone wall pattern — parallax scrolled
     ctx.strokeStyle="rgba(255,255,255,0.025)"; ctx.lineWidth=1;
-    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.W,gy);ctx.stroke();}
+    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.VW,gy);ctx.stroke();}
+    const offX = ((px%40)+40)%40;
     for (let row=0;row<CFG.H/40;row++) {
-      const off=(row%2)*20;
-      for (let gx=off;gx<CFG.W;gx+=40){ctx.beginPath();ctx.moveTo(gx,row*40);ctx.lineTo(gx,row*40+40);ctx.stroke();}
+      const off=(row%2)*20 - offX;
+      for (let gx=off;gx<CFG.VW;gx+=40){ctx.beginPath();ctx.moveTo(gx,row*40);ctx.lineTo(gx,row*40+40);ctx.stroke();}
     }
-    // Torches
-    for (let tx=80;tx<CFG.W;tx+=160) {
-      const fl=0.7+0.3*Math.sin(time*0.007+tx);
+    // Torches — world-spaced, parallax scrolled
+    const tStart = Math.floor(px/160)*160 - 160;
+    for (let wx=tStart; wx<px+CFG.VW+160; wx+=160) {
+      const tx = wx - px;
+      const fl=0.7+0.3*Math.sin(time*0.007+wx);
       ctx.globalAlpha=fl*0.18;
       ctx.fillStyle="#f97316";
       ctx.beginPath(); ctx.arc(tx,60,18,0,Math.PI*2); ctx.fill();
@@ -962,14 +1071,15 @@ function drawBackground(time) {
   }
   if (b.bgGrid) {
     ctx.strokeStyle="rgba(255,255,255,0.022)"; ctx.lineWidth=1;
-    for (let gx=0;gx<CFG.W;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,CFG.H);ctx.stroke();}
-    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.W,gy);ctx.stroke();}
+    const offX = ((px%40)+40)%40;
+    for (let gx=-offX;gx<CFG.VW;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,CFG.H);ctx.stroke();}
+    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.VW,gy);ctx.stroke();}
   }
 
-  // Pit gradient
+  // Pit gradient — viewport-fixed (always visible at bottom)
   const pitG=ctx.createLinearGradient(0,CFG.groundY-20,0,CFG.H);
   pitG.addColorStop(0,"rgba(0,0,0,0)"); pitG.addColorStop(1,b.pitColor);
-  ctx.fillStyle=pitG; ctx.fillRect(0,CFG.groundY-20,CFG.W,CFG.H-CFG.groundY+20);
+  ctx.fillStyle=pitG; ctx.fillRect(0,CFG.groundY-20,CFG.VW,CFG.H-CFG.groundY+20);
 }
 
 function drawPlatforms(platforms) {
@@ -1026,17 +1136,50 @@ function drawSpawn(spawn) {
 }
 
 function drawDoor(door, time) {
+  const locked = level.key && !level.key.collected;
   const pulse=0.5+0.5*Math.sin(time*0.006);
-  ctx.shadowColor=currentBiome.accent; ctx.shadowBlur=12+pulse*16;
-  ctx.fillStyle="rgba(251,191,36,0.4)";
-  ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
+
+  if (locked) {
+    // Greyed-out, no glow — clearly inactive
+    ctx.fillStyle="rgba(120,120,130,0.25)";
+    ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
+    ctx.fillStyle="#4b5563";
+    ctx.fillRect(door.x,door.y,door.w,door.h);
+    ctx.fillStyle="#1f2430";
+    ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
+    // Lock icon
+    ctx.fillStyle="#9aa0a6";
+    ctx.fillRect(door.x+door.w/2-5, door.y+door.h/2-2, 10, 8);
+    ctx.strokeStyle="#9aa0a6"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(door.x+door.w/2, door.y+door.h/2-2, 4, Math.PI, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle="rgba(255,255,255,0.15)"; ctx.lineWidth=2;
+    ctx.strokeRect(door.x,door.y,door.w,door.h);
+  } else {
+    ctx.shadowColor=currentBiome.accent; ctx.shadowBlur=12+pulse*16;
+    ctx.fillStyle="rgba(251,191,36,0.4)";
+    ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
+    ctx.fillStyle="#fbbf24";
+    ctx.fillRect(door.x,door.y,door.w,door.h);
+    ctx.fillStyle="#1a1408";
+    ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
+    ctx.shadowBlur=0;
+    ctx.strokeStyle=`rgba(255,255,255,${0.3+pulse*0.4})`; ctx.lineWidth=2;
+    ctx.strokeRect(door.x,door.y,door.w,door.h);
+  }
+}
+
+function drawKey(key, time) {
+  if (!key || key.collected) return;
+  const bob = Math.sin(time*0.004 + key.bobOffset) * 4;
+  const cx = key.x+9, cy = key.y+9+bob;
+  ctx.shadowColor="rgba(251,191,36,0.6)"; ctx.shadowBlur=10;
   ctx.fillStyle="#fbbf24";
-  ctx.fillRect(door.x,door.y,door.w,door.h);
-  ctx.fillStyle="#1a1408";
-  ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
+  // Simple key shape: circle head + rectangular shaft + teeth
+  ctx.beginPath(); ctx.arc(cx-3, cy, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillRect(cx-1, cy-2, 9, 4);
+  ctx.fillRect(cx+4, cy+2, 2, 4);
+  ctx.fillRect(cx+7, cy+2, 2, 4);
   ctx.shadowBlur=0;
-  ctx.strokeStyle=`rgba(255,255,255,${0.3+pulse*0.4})`; ctx.lineWidth=2;
-  ctx.strokeRect(door.x,door.y,door.w,door.h);
 }
 
 function drawPlayer(p) {
@@ -1058,14 +1201,18 @@ function drawPlayer(p) {
 
 function render(time) {
   drawBackground(time);
+  ctx.save();
+  ctx.translate(-cameraX, 0);
   drawPlatforms(level.platforms);
+  drawKey(level.key, time);
+  drawDoor(level.door, time);
   drawSpikes(level.spikes);
   drawCoins(level.coins, time);
   drawSpawn(level.spawn);
-  drawDoor(level.door, time);
   drawPlayer(player);
   drawParticles();
-  if(deathFlash>0){ctx.fillStyle=`rgba(239,68,68,${deathFlash*0.32})`;ctx.fillRect(0,0,CFG.W,CFG.H);}
+  ctx.restore();
+  if(deathFlash>0){ctx.fillStyle=`rgba(239,68,68,${deathFlash*0.32})`;ctx.fillRect(0,0,CFG.VW,CFG.H);}
 }
 
 // =========================================================================
@@ -1077,6 +1224,7 @@ const shopLifeBtn   = document.getElementById("shop-life");
 const shopSkipBtn   = document.getElementById("shop-skip");
 const shopCloseBtn  = document.getElementById("shop-close");
 const shieldPip     = document.getElementById("shield-pip");
+const keyIndicator  = document.getElementById("key-indicator");
 
 function openShop() {
   shopOpen = true;
@@ -1184,6 +1332,12 @@ function startLevel(advance) {
   if (currentBiome.name !== level.biome.name) startMusic(level.biome.name.toLowerCase());
   currentBiome = level.biome;
   player = createPlayer(level.spawn);
+  cameraX = Math.max(0, Math.min(CFG.W - CFG.VW, player.x + player.w/2 - CFG.VW/2));
+
+  // Key indicator: visible (greyed) if level has a key, hidden if not
+  keyIndicator.style.display = level.key ? "inline" : "none";
+  keyIndicator.classList.remove("active");
+
   updateHud();
 }
 
@@ -1212,7 +1366,7 @@ function completeLevel() {
   sfxWin();
   spawnParticles(level.door.x+18,level.door.y+22,currentBiome.accent,20,3.5);
   setTimeout(()=>{
-    ctx.fillStyle=currentBiome.bg; ctx.fillRect(0,0,CFG.W,CFG.H);
+    ctx.fillStyle=currentBiome.bg; ctx.fillRect(0,0,CFG.VW,CFG.H);
     levelNumber++;  // bump here so shop shows correct "next level" number
     score+=50;
     // Every 10 levels → shop before continuing
@@ -1277,14 +1431,17 @@ function gameLoop(time) {
     updatePlayer(player);
     resolvePlatformCollisions(player,level.platforms);
     resolveWallCollision(player, level.spawnWall);
+    if (level.key && !level.key.collected) resolveSolidCollision(player, level.doorWall); // locked door blocks until key collected
     if(player.onGround&&!player.wasOnGround) player.landSquash=Math.max(player.landSquash,10);
     updatePlayerMotionFx(player);
     updateParticles();
     checkCoinPickups(player);
+    checkKeyPickup(player);
+    updateCamera();
 
     if      (playerFellInPit(player))                            killPlayer();
     else if (!isDead&&level.spikes.some(s=>rectsOverlap(player,s))) killPlayer();
-    else if (!isDead&&rectsOverlap(player,level.door))              completeLevel();
+    else if (!isDead&&(!level.key||level.key.collected)&&rectsOverlap(player,level.door)) completeLevel();
 
     if(deathFlash>0) deathFlash=Math.max(0,deathFlash-0.08);
   } else if (!gameOver&&levelTransition) {
@@ -1292,7 +1449,7 @@ function gameLoop(time) {
   }
   if (!levelTransition||gameOver) render(time);
   else if (particles.length>0) {
-    ctx.fillStyle=currentBiome.bg; ctx.fillRect(0,0,CFG.W,CFG.H);
+    ctx.fillStyle=currentBiome.bg; ctx.fillRect(0,0,CFG.VW,CFG.H);
     drawParticles();
   }
   requestAnimationFrame(gameLoop);
