@@ -1301,17 +1301,26 @@ function updatePlayer(p) {
   if (keys.right) { p.vx+=CFG.moveAccel; p.facing= 1; }
   if (!keys.left&&!keys.right) { p.vx*=p.onGround?CFG.groundFric:CFG.airFric; if(Math.abs(p.vx)<0.04)p.vx=0; }
 
-  // Wind zones push the player horizontally while airborne
-  if (!p.onGround && level.windZones) {
+ // Wind zones push the player horizontally while airborne
+if (!p.onGround && level.windZones) {
     for (const wz of level.windZones) {
-      if (p.x+p.w > wz.x && p.x < wz.x+wz.w && p.y+p.h > wz.y && p.y < wz.y+wz.h) {
-        p.vx += wz.dir * wz.strength;
-      }
+        // Проверка на пересечение с зоной ветра
+        if (p.x + p.w > wz.x && p.x < wz.x + wz.w && p.y + p.h > wz.y && p.y < wz.y + wz.h) {
+            // Добавление силы ветра к скорости
+            p.vx += wz.dir * wz.strength * 0.1; // Уменьшить влияние ветра на земле
+        }
     }
-  }
+}
 
-  const maxSpeed = CFG.moveSpeed + (level.windZones && level.windZones.length ? 1.2 : 0);
-  p.vx=Math.max(-maxSpeed,Math.min(maxSpeed,p.vx));
+// Добавление порывов ветра (случайные импульсы)
+if (!p.onGround && level.windZones && Math.random() < 0.02) { // 2% шанс на порыв
+    const windImpulse = (Math.random() - 0.5) * 2; // Случайный порыв от -1 до 1
+    p.vx += windImpulse;
+}
+
+// Ограничение скорости
+const maxSpeed = CFG.moveSpeed + (level.windZones && level.windZones.length ? 1.2 : 0);
+p.vx = Math.max(-maxSpeed, Math.min(maxSpeed, p.vx));
 
   if (p.onGround) p.coyoteTime=6; else if(p.coyoteTime>0) p.coyoteTime--;
   if (keys.up) p.jumpBuffer=8; else if(p.jumpBuffer>0) p.jumpBuffer--;
@@ -2215,3 +2224,4 @@ requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
+
