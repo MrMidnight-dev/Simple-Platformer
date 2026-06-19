@@ -56,12 +56,38 @@
       background: rgba(13,15,20,0.9); border-radius: 4px;
       flex-direction: column; align-items: center; justify-content: center;
       gap: 0.85rem; z-index: 10;
+      line-height: 1.4; /* reset — #canvas-wrap sets line-height:0 which collapses text */
     }
     #overlay.active { display: flex; }
     #overlay h2 { font-size: 2rem; font-weight: 700; letter-spacing: 0.05em; }
     #overlay .ov-sub   { font-size: 1rem;    color: #9aa0a6; }
     #overlay .ov-score { font-size: 1.15rem; color: #e8eaed; }
     #overlay .ov-record{ font-size: 0.9rem;  color: #fbbf24; }
+
+    #leaderboard {
+      display: flex; flex-direction: column; gap: 4px;
+      width: 240px; max-height: 220px; overflow: hidden;
+      margin-top: 0.2rem;
+    }
+    .lb-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.3rem 0.7rem; border-radius: 6px;
+      background: rgba(255,255,255,0.04);
+      font-size: 0.85rem; color: #9aa0a6;
+      transition: background 0.4s, transform 0.4s, opacity 0.4s;
+    }
+    .lb-row.lb-new {
+      background: rgba(251,191,36,0.16); color: #fbbf24;
+      animation: lbPop 0.5s ease;
+    }
+    .lb-rank { width: 22px; color: #6b7280; font-variant-numeric: tabular-nums; }
+    .lb-name { flex: 1; text-align: left; padding-left: 4px; color: #cdd5e0; }
+    .lb-score { font-variant-numeric: tabular-nums; font-weight: 600; }
+    @keyframes lbPop {
+      0% { transform: scale(0.92); opacity: 0.4; }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); opacity: 1; }
+    }
     #restart-btn {
       margin-top: 0.4rem; padding: 0.6rem 2.2rem; background: #38bdf8;
       color: #0d0f14; border: none; border-radius: 6px;
@@ -71,12 +97,37 @@
     #restart-btn:hover  { background: #7dd3fc; }
     #restart-btn:active { transform: scale(0.96); }
 
+    /* ── Leaderboard (shown on Game Over) ── */
+    #leaderboard {
+      display: flex; flex-direction: column; gap: 4px;
+      width: 240px; max-height: 220px; overflow-y: auto;
+      padding: 0.4rem; background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+    }
+    .lb-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.28rem 0.5rem; border-radius: 6px;
+      font-size: 0.85rem; color: #9aa0a6;
+      background: rgba(255,255,255,0.02);
+      transition: transform 0.5s cubic-bezier(0.34,1.2,0.64,1), background 0.4s, color 0.4s;
+    }
+    .lb-row .lb-rank  { width: 1.4rem; text-align: right; color: #6b7280; font-variant-numeric: tabular-nums; }
+    .lb-row .lb-score { flex: 1; text-align: left; font-variant-numeric: tabular-nums; }
+    .lb-row.lb-new {
+      background: rgba(56,189,248,0.16);
+      color: #e8eaed; font-weight: 600;
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.35) inset;
+    }
+    .lb-row.lb-new .lb-rank { color: #38bdf8; }
+    .lb-row.lb-top1 .lb-rank { color: #fbbf24; }
+
     /* ── Shop overlay ── */
     #shop-overlay {
       display: none; position: absolute; inset: 0;
       background: rgba(10,12,18,0.96); border-radius: 4px;
       flex-direction: column; align-items: center; justify-content: center;
       gap: 1.1rem; z-index: 20;
+      line-height: 1.4; /* reset — #canvas-wrap sets line-height:0 which collapses text */
     }
     #shop-overlay.active { display: flex; }
     #shop-overlay h2 { font-size: 1.7rem; font-weight: 700; letter-spacing: 0.05em; color: #fbbf24; }
@@ -122,11 +173,6 @@
     #shield-pip { display: none; font-size: 1rem; }
     #shield-pip.active { display: inline; }
 
-    /* ── Key indicator in HUD ── */
-    #key-indicator { display: none; font-size: 1rem; filter: grayscale(1) opacity(0.4); }
-    #key-indicator.active { display: inline; filter: none; animation: keyPulse 1.4s ease-in-out infinite; }
-    @keyframes keyPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
-
     /* ── Small / portrait screens — game fills viewport width ── */
     @media (max-width: 760px) {
       body { padding: 0.5rem; gap: 0.4rem; }
@@ -157,10 +203,10 @@
   <div class="hud">
     <span>Level<strong id="levelDisplay">1</strong></span>
     <span>Score<strong id="scoreDisplay">0</strong></span>
+    <span>Best<strong id="bestDisplay">0</strong></span>
     <span>🪙<strong id="coinsDisplay">0</strong></span>
     <span id="biomeLabel">Space</span>
     <span id="shield-pip">🛡</span>
-    <span id="key-indicator">🔑</span>
     <button id="skip-btn" title="Use skip token" style="display:none;background:rgba(251,191,36,0.15);border:1.5px solid #fbbf24;color:#fbbf24;border-radius:6px;padding:0.18rem 0.55rem;font-size:0.8rem;cursor:pointer;line-height:1.3;">⏭ Skip (<span id="skipCount">0</span>)</button>
     <span class="lives">
       <span class="heart" id="h1">❤️</span>
@@ -197,6 +243,7 @@
       <p class="ov-sub"   id="ov-sub"></p>
       <p class="ov-score" id="ov-score"></p>
       <p class="ov-record" id="ov-record"></p>
+      <div id="leaderboard"></div>
       <button id="restart-btn">Play Again</button>
     </div>
   </div>
@@ -372,13 +419,14 @@ const CFG = {
   VW:1100, H:540,        // viewport (visible) size
   W:2640,                 // world width — ~2.4x viewport, scrolls with camera
   gravUp:0.2, gravFall:0.26,
-  moveSpeed:2.4, moveAccel:0.14,
+  moveSpeed:2.4, moveAccel:0.22,
   groundFric:0.86, airFric:0.97,
-  jumpForce:-8.6, jumpCutVy:-3.8, maxFall:4.5,
+  jumpForce:-6.1, jumpCutVy:-5.1, maxFall:4.5,
+  maxJumpHold:14, jumpHoldThrust:0.07, // variable jump height: hold for higher, tap for short hop
   pSize:28, pitY:528,
-  platMinW:75, platMaxW:140, platH:16,
-  maxJumpX:98, maxJumpUp:80, maxDrop:92,
-  minPlats:11, maxPlats:16,   // more platforms to fill the wider world
+  platMinW:60, platMaxW:110, platH:16,
+  maxJumpX:98, maxJumpUp:65, maxDrop:92,
+  minPlats:12, maxPlats:18,   // narrower platforms + bigger gaps fill the world
   groundY:470,
   maxLives:3, coinValue:10,
 };
@@ -388,11 +436,15 @@ const CFG = {
 // =========================================================================
 function difficulty(lvl) {
   const t = Math.min((lvl-1)/14, 1); // 0..1 over 15 levels
+  // Extra easing for the very first levels — spikes/movers were appearing
+  // too aggressively right out of the gate, before the player has learned
+  // the controls. earlyEase fades out by level 6.
+  const earlyEase = lvl <= 6 ? (6-lvl)/5 : 0; // 1 at lvl1 → 0 at lvl6
   return {
-    spikeChance:   0.20 + t*0.45,          // 0.20 → 0.65
+    spikeChance:   Math.max(0, 0.20 + t*0.45 - earlyEase*0.18),  // gentler start
     extraSpikes:   Math.floor(t*2),         // 0 → 2 extra spikes per platform
     gapBonus:      Math.floor(t*18),        // adds to maxJumpX gap
-    movingChance:  t > 0.15 ? 0.18+t*0.3 : 0, // no movers until lvl 3
+    movingChance:  (t > 0.15 ? 0.18+t*0.3 : 0) * (1 - earlyEase), // no movers until lvl 6+
     movingSpeed:   0.9 + t*2.2,            // px/frame
     coinChance:    0.40 - t*0.12,           // slightly fewer coins at high lvl
     extraPlats:    Math.min(Math.floor(t*3), 3), // up to 3 extra platforms
@@ -404,8 +456,26 @@ function difficulty(lvl) {
 // =========================================================================
 const canvas      = document.getElementById("game");
 const ctx         = canvas.getContext("2d");
+
+// ── DPR-aware backing store ───────────────────────────────────────────────
+// The canvas element's logical size stays 1100x540 (all game-coordinate math
+// below assumes this). On high-DPI or CSS-downscaled displays (mobile), the
+// actual pixel buffer is scaled up by devicePixelRatio and the context is
+// scaled to match — this keeps sub-pixel player movement/animation smooth
+// instead of snapping to large "display pixels" when the canvas is shrunk
+// via CSS (max-width:100%).
+(function setupCanvasResolution() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width  = CFG.VW * dpr;
+  canvas.height = CFG.H  * dpr;
+  canvas.style.width  = CFG.VW + "px";
+  canvas.style.height = CFG.H  + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+})();
+
 const levelDisplay = document.getElementById("levelDisplay");
 const scoreDisplay = document.getElementById("scoreDisplay");
+const bestDisplay  = document.getElementById("bestDisplay");
 const coinsDisplay = document.getElementById("coinsDisplay");
 const biomeLabel   = document.getElementById("biomeLabel");
 const overlay      = document.getElementById("overlay");
@@ -413,6 +483,7 @@ const ovTitle      = document.getElementById("ov-title");
 const ovSub        = document.getElementById("ov-sub");
 const ovScore      = document.getElementById("ov-score");
 const ovRecord     = document.getElementById("ov-record");
+const leaderboardEl= document.getElementById("leaderboard");
 const restartBtn   = document.getElementById("restart-btn");
 
 const keys = { left:false, right:false, up:false };
@@ -422,6 +493,19 @@ let score           = 0;
 let totalCoins      = 0;
 let lives           = CFG.maxLives;
 let record          = parseInt(localStorage.getItem("pfRecord")||"0");
+
+// ── Leaderboard (top 10 scores) ────────────────────────────────────────────
+function loadLeaderboard() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("pfLeaderboard") || "[]");
+    if (Array.isArray(raw)) return raw.filter(e => typeof e.score === "number");
+  } catch(e) {}
+  return [];
+}
+function saveLeaderboard(list) {
+  localStorage.setItem("pfLeaderboard", JSON.stringify(list.slice(0, 10)));
+}
+let leaderboard = loadLeaderboard();
 let level           = null;
 let player          = null;
 let deathFlash      = 0;
@@ -455,7 +539,7 @@ let cameraX = 0; // world-space X of the viewport's left edge
 // =========================================================================
 function initStars() {
   stars = [];
-  for (let i=0;i<160;i++) stars.push({
+  for (let i=0;i<110;i++) stars.push({
     x:Math.random()*CFG.W, y:Math.random()*CFG.H*0.78, // world-space, drawn with camera offset
     r:Math.random()*1.4+0.4, alpha:Math.random()*0.45+0.12,
     twinkle:Math.random()*Math.PI*2,
@@ -491,6 +575,7 @@ function updateLivesHud() {
 function updateHud() {
   levelDisplay.textContent=levelNumber;
   scoreDisplay.textContent=score;
+  bestDisplay.textContent=record;
   coinsDisplay.textContent=totalCoins;
   biomeLabel.textContent=currentBiome.name;
   updateLivesHud();
@@ -605,18 +690,18 @@ function tryGenerateLevel(lvl) {
       const safeDown   = reach.maxD - 8;
 
       if (layout === "bu") {
-        gapX = randInt(30, Math.min(safeGapMax, 85));
+        gapX = randInt(45, Math.min(safeGapMax, 85));
         dy   = isLast ? randInt(-safeUp, -30) : randInt(-safeUp, -18);
         const side = (i%2===0 ? 1 : -1) * (dirX < 0 ? -1 : 1);
         newX = prev.x + side * (prev.w + Math.abs(gapX));
       } else if (layout === "mix") {
-        gapX = randInt(35, Math.min(safeGapMax, 90));
+        gapX = randInt(48, Math.min(safeGapMax, 90));
         dy   = isLast ? randInt(-safeUp, -28)
              : randInt(-safeUp, safeDown);
         newX = prev.x + dirX * (prev.w + gapX);
       } else {
         gapX = isLast ? randInt(50, Math.min(safeGapMax, 88))
-                      : randInt(32, Math.min(safeGapMax, 88));
+                      : randInt(46, Math.min(safeGapMax, 88));
         dy   = isLast ? randInt(-safeUp, -22)
                       : randInt(-safeUp, safeDown);
         newX = prev.x + dirX * (prev.w + gapX);
@@ -711,64 +796,238 @@ function tryGenerateLevel(lvl) {
 
   if (platforms.length < CFG.minPlats) return null;
 
-  // ── Door on last platform, well-centered, nothing near it ───────────
-  const last = platforms[platforms.length-1];
-  const door = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
-
-  // Remove platforms stacked too close below the door platform
-  // (keep first and last, clean up any mid platforms in the door's column)
-  const doorPlat = last;
-  const cleanPlatforms = platforms.filter((p, idx) => {
-    if (idx === 0 || idx === platforms.length-1) return true; // always keep start+end
-    const inDoorColumn = p.x < doorPlat.x+doorPlat.w+10 && p.x+p.w > doorPlat.x-10;
-    const tooClose     = p.y > doorPlat.y - 5 && p.y < doorPlat.y + 130;
-    return !(inDoorColumn && tooClose);
-  });
-
-  // Remove any spikes / coins / fallers that are inside or near the door
-  const filteredSpikes = spikes.filter(s => !nearDoor(s, door));
-  const filteredCoins  = coins.filter(c => !nearDoor(c, door));
-
-  // Spawn at start platform, a few px from the edge
   const first = platforms[0];
   const spawnX = layout === "rl" || layout === "bu"
     ? first.x + first.w - CFG.pSize - 10
     : first.x + 14;
   const spawn = {x:spawnX, y:first.y - CFG.pSize};
 
-  // Invisible wall on the "wrong" side of the spawn platform.
-  // dirX > 0 (lr/mix): player should go RIGHT  → wall on the LEFT edge
-  // dirX < 0 (rl/bu):  player should go LEFT   → wall on the RIGHT edge
   const wallOnLeft = (layout === "lr" || layout === "mix");
   const spawnWall = wallOnLeft
-    ? {x: first.x - 24, y: first.y - 120, w: 24, h: 120}   // left side
-    : {x: first.x + first.w, y: first.y - 120, w: 24, h: 120}; // right side
+    ? {x: first.x - 24, y: first.y - 120, w: 24, h: 120}
+    : {x: first.x + first.w, y: first.y - 120, w: 24, h: 120};
 
-  // ── Key & locked door ────────────────────────────────────────────────
-  // Place a key on a mid-level platform (not first/last/door column).
-  // A solid invisible wall covers the door until the key is collected.
-  let key = null;
-  const candidates = cleanPlatforms
-    .map((p, idx) => ({p, idx}))
-    .filter(({p, idx}) => idx !== 0 && idx !== cleanPlatforms.length-1 && !nearDoor(p, door));
+  return finalizeLevel(platforms, spikes, coins, biome, layout, diff, reach, spawn, spawnWall);
+}
 
-  if (candidates.length > 0) {
-    const choice = candidates[randInt(0, candidates.length-1)].p;
-    key = {
-      x: choice.x + choice.w/2 - 9, y: choice.y - 30,
-      w: 18, h: 18, collected: false,
-      bobOffset: Math.random()*Math.PI*2,
-    };
+// ════════════════════════════════════════════════════════════════════════
+// SHARED TAIL — door placement, cleanup, wind zones, lever+bridge puzzle,
+// reachability checks. Used by both the normal chain generator and the
+// floor-level generator.
+// ════════════════════════════════════════════════════════════════════════
+function finalizeLevel(platforms, spikes, coins, biome, layout, diff, reach, spawn, spawnWall) {
+  // ── Door on last platform, well-centered, nothing near it ───────────
+  const last = platforms[platforms.length-1];
+  const door = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
+
+  // Remove platforms stacked too close to the door column — both above
+  // (would visually/physically block the door from the top) and below
+  // (keep first and last platform always)
+  const doorPlat = last;
+  let cleanPlatforms = platforms.filter((p, idx) => {
+    if (idx === 0 || idx === platforms.length-1) return true; // always keep start+end
+    const inDoorColumn = p.x < doorPlat.x+doorPlat.w+10 && p.x+p.w > doorPlat.x-10;
+    if (!inDoorColumn) return true;
+    const tooClose = p.y > doorPlat.y - 150 && p.y < doorPlat.y + 130;
+    return !tooClose;
+  });
+
+  // Remove any spikes / coins that are inside or near the door, or whose
+  // underlying platform was removed by the door-column cleanup above
+  function hasSupportingPlatform(obj, surfaceOffset, platList) {
+    const platY = obj.y + surfaceOffset;
+    return platList.some(p =>
+      p.x <= obj.x + obj.w*0.5 && p.x+p.w >= obj.x + obj.w*0.5 &&
+      Math.abs(p.y - platY) < 4
+    );
+  }
+  let filteredSpikes = spikes.filter(s => !nearDoor(s, door) && hasSupportingPlatform(s, 14, cleanPlatforms));
+  let filteredCoins  = coins.filter(c => !nearDoor(c, door) && hasSupportingPlatform(c, 28, cleanPlatforms));
+
+  // ════════════════════════════════════════════════════════════════════
+  // WIND — single level-wide zone covering the entire world/height.
+  // Leaves drift across the whole screen; wind pushes player in air.
+  // ════════════════════════════════════════════════════════════════════
+  const windZones = [];
+  if (Math.random() < 0.55) {
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    windZones.push({
+      x: 0, y: 0, w: CFG.W, h: CFG.H,
+      dir, strength: 0.032 + Math.random()*0.022,
+    });
   }
 
-  // Door wall: a solid barrier in front of the door, removed once key collected
-  const doorWall = {x: door.x-2, y: door.y-2, w: door.w+4, h: door.h+4};
+  // ════════════════════════════════════════════════════════════════════
+  // LEVER → BRIDGE PUZZLE
+  // ════════════════════════════════════════════════════════════════════
+  // Push the door platform further away from "approach" so the gap exceeds
+  // the player's jump range — the bridge becomes mandatory, not optional.
+  // A row of bridge segments fills that gap but starts INACTIVE (invisible/
+  // non-solid). A lever sits on a short side-branch off the main path.
+  // Activating it animates the bridge segments into place and makes them solid.
 
-  // Final reachability guard — BFS on the cleaned platform list
-  if (!isReachable(cleanPlatforms, diff)) return null;
+  const approach = cleanPlatforms.length >= 2 ? cleanPlatforms[cleanPlatforms.length-2] : null;
+  let bridge = [], lever = null;
 
-  return {platforms:cleanPlatforms, spikes:filteredSpikes, coins:filteredCoins,
-          fallers:[], spawn, spawnWall, door, doorWall, key, biome, layout};
+  if (approach && approach !== doorPlat) {
+    const approachRight = approach.x + approach.w;
+    const approachLeft  = approach.x;
+    let doorPlatLeft  = doorPlat.x;
+    let doorPlatRight = doorPlat.x + doorPlat.w;
+
+    const goingRight = doorPlatLeft >= approachRight; // door is to the right of approach
+    const requiredGap = reach.maxH + randInt(30, 55); // must exceed jump range
+
+    // Other platforms that could collide with doorPlat if shifted — exclude
+    // approach (the bridge fills that gap) and doorPlat itself.
+    const others = cleanPlatforms.filter(p => p !== doorPlat && p !== approach);
+
+    if (goingRight) {
+      const currentGap = doorPlatLeft - approachRight;
+      if (currentGap < requiredGap) {
+        let shift = requiredGap - currentGap;
+        // Clamp against world bound
+        const maxShiftWorld = (CFG.W - 12) - doorPlatRight;
+        shift = Math.min(shift, Math.max(0, maxShiftWorld));
+        // Clamp against any other platform doorPlat would overlap when moved right
+        for (const p of others) {
+          // Only platforms vertically close enough to matter (use platsOverlap's my=40 band)
+          if (Math.abs(p.y - doorPlat.y) >= 40 + doorPlat.h) continue;
+          if (p.x + p.w + 6 <= doorPlatLeft) continue; // already to the left, can't collide on rightward move
+          if (p.x >= doorPlatRight + shift + 6) continue; // far enough right, won't collide
+          // doorPlat moving right could hit p's left edge
+          const maxShiftToP = (p.x - 6) - doorPlatRight;
+          if (maxShiftToP >= 0) shift = Math.min(shift, maxShiftToP);
+          else shift = 0; // already overlapping in x — don't move at all
+        }
+        doorPlat.x += shift; door.x += shift;
+        doorPlatLeft += shift; doorPlatRight += shift;
+      }
+    } else {
+      const currentGap = approachLeft - doorPlatRight;
+      if (currentGap < requiredGap) {
+        let shift = requiredGap - currentGap;
+        const maxShiftWorld = doorPlatLeft - 12;
+        shift = Math.min(shift, Math.max(0, maxShiftWorld));
+        for (const p of others) {
+          if (Math.abs(p.y - doorPlat.y) >= 40 + doorPlat.h) continue;
+          if (p.x >= doorPlatRight + 6) continue; // already to the right, can't collide on leftward move
+          if (p.x + p.w <= doorPlatLeft - shift - 6) continue;
+          const maxShiftToP = doorPlatLeft - (p.x + p.w + 6);
+          if (maxShiftToP >= 0) shift = Math.min(shift, maxShiftToP);
+          else shift = 0;
+        }
+        doorPlat.x -= shift; door.x -= shift;
+        doorPlatLeft -= shift; doorPlatRight -= shift;
+      }
+    }
+
+    // Recompute final gap after shifting
+    const gapFromRight = doorPlatLeft - approachRight;
+    const gapFromLeft  = approachLeft - doorPlatRight;
+    const finalGoingRight = gapFromRight >= gapFromLeft;
+    const actualGap = Math.max(gapFromRight, gapFromLeft);
+
+    // Only build a bridge if there's an actual gap to fill (the shift may
+    // have been clamped to 0 due to overlap with other platforms — in that
+    // case the door is already reachable directly, no bridge needed).
+    if (actualGap > 20) {
+      const gapWidth = actualGap;
+      const segW = 50; // each bridge segment width
+      const segCount = Math.max(1, Math.min(5, Math.ceil(gapWidth / segW)));
+      const bridgeY  = (approach.y + doorPlat.y) / 2; // average height, spans the gap
+
+      for (let s=0; s<segCount; s++) {
+        const bx = finalGoingRight
+          ? approachRight + s*segW
+          : doorPlatRight + s*segW;
+        bridge.push({
+          x:bx, y:bridgeY, w:Math.min(segW, gapWidth - s*segW + 4), h:CFG.platH,
+          color: 1, biome,
+          active:false,            // becomes true (solid+visible) when lever pulled
+          revealProgress: 0,       // 0..1 animation
+          revealDelay: s * 6,      // stagger the reveal animation, frames
+        });
+      }
+    }
+
+    // ── Lever placement: genuine side-branch off a mid-path platform ────
+    // Only relevant if a bridge actually exists for it to activate.
+    // Pick a mid platform (not first/last/approach) to branch from.
+    const branchCandidates = bridge.length === 0 ? [] : cleanPlatforms
+      .map((p, idx) => ({p, idx}))
+      .filter(({p, idx}) => idx > 0 && idx < cleanPlatforms.length-2 && !nearDoor(p, door));
+
+    // Shuffle candidates so we try different branch points if the first fails
+    for (let ci = branchCandidates.length-1; ci > 0; ci--) {
+      const j = randInt(0, ci);
+      [branchCandidates[ci], branchCandidates[j]] = [branchCandidates[j], branchCandidates[ci]];
+    }
+
+    for (const {p: branchFrom} of branchCandidates) {
+      // Try both directions, prefer one that points AWAY from the main chain's
+      // general travel direction (so it's a genuine detour, not "next platform")
+      for (const branchDir of [1, -1, Math.random()<0.5?1:-1]) {
+        const bW = randInt(55, 75);
+        // Bigger gap and steeper rise than a normal chain step, so it reads
+        // as "off the path" rather than "the next platform"
+        const bGapX = randInt(Math.ceil(reach.maxH*0.55), Math.floor(reach.maxH) - 8);
+        const bDy   = -randInt(Math.ceil(reach.maxU*0.6), Math.floor(reach.maxU) - 6);
+        let bX = branchDir > 0 ? branchFrom.x + branchFrom.w + bGapX : branchFrom.x - bGapX - bW;
+        let bY = Math.max(40, branchFrom.y + bDy);
+        bX = Math.max(8, Math.min(CFG.W - bW - 8, bX));
+
+        const leverPlat = {x:bX, y:bY, w:bW, h:CFG.platH, color:(branchFrom.color+2)%biome.platform.length, biome};
+
+        const dx = Math.max(0, bX > branchFrom.x ? bX - (branchFrom.x+branchFrom.w) : branchFrom.x - (bX+bW));
+        const dyAbs = Math.abs(bY - branchFrom.y);
+        const inRange  = dx <= reach.maxH && dyAbs <= reach.maxU;
+        const noOverlap = cleanPlatforms.every(p => !platsOverlap(leverPlat, p)) &&
+                           bridge.every(p => !platsOverlap(leverPlat, p));
+
+        // Isolation: the lever platform must NOT be reachable from any main-chain
+        // platform other than branchFrom — otherwise the player could skip the
+        // "detour" entirely by jumping straight from a neighbouring platform.
+        const isolated = cleanPlatforms.every(p =>
+          p === branchFrom || (!canReach(p, leverPlat, diff) && !canReach(leverPlat, p, diff))
+        );
+
+        if (inRange && noOverlap && isolated) {
+          cleanPlatforms.push(leverPlat);
+          lever = {
+            x: bX + bW/2 - 11, y: bY - 24,
+            w: 22, h: 24, pulled: false,
+          };
+          break;
+        }
+      }
+      if (lever) break;
+    }
+  }
+
+  // If we couldn't place a lever (no room), fall back to making the bridge
+  // already active — level is still completable, just without the puzzle.
+  if (!lever) {
+    bridge.forEach(b => { b.active = true; b.revealProgress = 1; });
+  }
+
+  // ── Reachability checks ──────────────────────────────────────────────
+  // 1. With the bridge present, spawn → door platform must be reachable
+  //    (validates the level is solvable once the lever is pulled)
+  const allPlatformsWithBridge = cleanPlatforms.concat(bridge);
+  if (!isReachableTo(allPlatformsWithBridge, doorPlat, diff)) return null;
+
+  // 2. If a lever exists, the lever's platform (last pushed onto cleanPlatforms)
+  //    must be reachable WITHOUT the bridge — i.e. it's a genuine side-branch
+  if (lever) {
+    const leverPlat = cleanPlatforms[cleanPlatforms.length-1];
+    if (!isReachableTo(cleanPlatforms, leverPlat, diff)) return null;
+  }
+
+  const doorWall = null; // door is now purely decorative when locked — no physical block
+
+  return {platforms:cleanPlatforms, bridge, lever, spikes:filteredSpikes, coins:filteredCoins,
+          fallers:[], spawn, spawnWall, door, doorWall, key:null, windZones, biome, layout};
 }
 
 // ── Reachability check ───────────────────────────────────────────────────
@@ -807,8 +1066,156 @@ function isReachable(platforms, diff) {
   return visited.has(goal);
 }
 
+// BFS from platforms[0] to a specific target platform (by reference)
+function isReachableTo(platforms, targetPlat, diff) {
+  if (platforms.length < 2) return false;
+  const goalIdx = platforms.indexOf(targetPlat);
+  if (goalIdx === -1) return false;
+  const visited = new Set([0]);
+  const queue   = [0];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === goalIdx) return true;
+    for (let j=0; j<platforms.length; j++) {
+      if (visited.has(j)) continue;
+      if (canReach(platforms[cur], platforms[j], diff) ||
+          canReach(platforms[j], platforms[cur], diff)) {
+        visited.add(j);
+        queue.push(j);
+      }
+    }
+  }
+  return visited.has(goalIdx);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FLOOR LEVEL — a solid platform spans the entire world at ground level.
+// The player can never fall off the bottom. Above the floor, a chain of
+// platforms climbs toward a door near the top of the screen. The lever
+// for the bridge puzzle sits on an isolated ledge reached by a side-jump
+// off the main ascending path — not directly on the route up.
+// ════════════════════════════════════════════════════════════════════════
+function tryGenerateFloorLevel(lvl) {
+  const diff  = difficulty(lvl);
+  const biome = getBiome(lvl);
+  const reach = jumpReach(diff);
+  const spikes=[], coins=[];
+
+  // The floor: one giant platform spanning the whole world width.
+  // Its top surface sits at groundY, same as normal levels' lowest point.
+  const floor = {x:0, y:CFG.groundY, w:CFG.W, h:CFG.H-CFG.groundY+40, color:0, biome};
+
+  const platforms = [floor];
+
+  // Ascending chain — climbs from the floor toward a door near the top,
+  // while making steady NET horizontal progress across the wide world
+  // (previously a zig-zag with cancelling +1/-1 directions caused every
+  // platform to pile up near the starting X and hit the height ceiling
+  // after 2-3 steps). Overall travel direction is randomised left/right.
+  const count = randInt(CFG.minPlats, CFG.maxPlats);
+  const travelRight = Math.random() < 0.5;
+  let curX = travelRight ? 160 : CFG.W - 160;
+  let curY = CFG.groundY - randInt(45, 68); // within jump reach of the floor
+
+  // Total height to climb and total width to cross, spread evenly across
+  // (count-1) steps so the chain doesn't hit the ceiling early.
+  const totalClimb = (CFG.groundY - 90) - curY; // distance from start to near-top
+  const climbPerStep = totalClimb / Math.max(1, count-1);
+
+  // Virtual anchor for the first ascending platform — a zero-width point at
+  // (curX, curY). Using `floor` (which spans the whole world) as `prev` would
+  // produce nonsensical offsets for the first step.
+  let prevRef = {x: curX, y: curY, w: 0};
+
+  for (let i=1; i<count; i++) {
+    const prev = prevRef;
+    const isLast = i === count-1;
+    let newX, newY, newW, placed=false;
+
+    const safeGapMax = reach.maxH - 10;
+    const safeUp     = reach.maxU - 8;
+
+    for (let attempt=0; attempt<14; attempt++) {
+      newW = randInt(CFG.platMinW, CFG.platMaxW);
+
+      // Net horizontal progress in the travel direction, with a small
+      // zig-zag wobble (occasionally step back slightly) for visual variety
+      const dir = travelRight ? 1 : -1;
+      const wobble = (Math.random() < 0.25) ? -1 : 1; // 25% chance of a small backstep
+      const gapX = randInt(40, Math.min(safeGapMax, 90));
+
+      // Climb amount: spread the total climb evenly, with some per-step variance,
+      // clamped so we never exceed what's reachable in one jump.
+      const dyTarget = Math.min(safeUp, Math.max(12, climbPerStep + randInt(-15, 15)));
+      const dy = isLast ? -Math.min(safeUp, Math.max(35, dyTarget)) : -dyTarget;
+
+      newX = prev.x + dir * wobble * (prev.w/2 + gapX);
+      newY = Math.max(50, prev.y + dy); // climbing only — never goes below prev
+
+      newX = Math.max(8, Math.min(CFG.W - newW - 8, newX));
+
+      const candidate = {x:newX, y:newY, w:newW, h:CFG.platH};
+
+      const dx = Math.max(0, newX > prev.x ? newX - (prev.x+prev.w) : prev.x - (newX+newW));
+      const actualDy = newY - prev.y;
+      const reachable = dx <= reach.maxH && actualDy <= 0 && actualDy >= -reach.maxU;
+      if (!reachable) continue;
+
+      // No overlap with existing platforms (floor excluded — everything sits above it)
+      if (!platforms.slice(1).every(p => !platsOverlap(candidate, p))) continue;
+      // Must stay above the floor
+      if (newY > CFG.groundY - 60) continue;
+
+      placed = true; break;
+    }
+
+    if (!placed) continue;
+
+    prevRef = {x:newX, y:newY, w:newW}; // advance the chain anchor
+
+    const platObj = {x:newX, y:newY, w:newW, h:CFG.platH, color:i%biome.platform.length, biome};
+
+    // Occasional spikes on wide-enough mid platforms
+    if (!isLast && i>1 && newW >= 100 && Math.random() < diff.spikeChance*0.7) {
+      const maxFit = maxSpikesForWidth(newW);
+      if (maxFit >= 1) {
+        spikes.push({x:newX+10, y:newY-14, w:14, h:14});
+      }
+    }
+
+    // Coins along the climb
+    if (!isLast && Math.random() < diff.coinChance) {
+      coins.push({x:newX+newW/2-7, y:newY-28, w:14, h:14, collected:false, bobOffset:Math.random()*Math.PI*2});
+    }
+
+    platforms.push(platObj);
+  }
+
+  if (platforms.length < 5) return null; // need floor + at least a few climbing platforms
+
+  // ── Spawn on the floor, on the side where the ascending chain begins ──
+  const spawn = {x: travelRight ? 40 : CFG.W - 40 - CFG.pSize, y: floor.y - CFG.pSize};
+  // No spawn wall needed — floor spans the whole world, nothing to fall off
+
+  return finalizeLevel(platforms, spikes, coins, biome, "lr", diff, reach, spawn, null);
+}
+
 function generateLevel(lvl) {
   const diff = difficulty(lvl);
+  // First 5 levels are always floor levels — gentle introduction with a
+  // safety-net floor under the whole level, no falling, easier pacing.
+  // After that, floor levels appear every 3rd level (was every 5th) since
+  // they read as more approachable / puzzle-focused than the jump chains.
+  const useFloor = lvl <= 5 || (lvl-1) % 3 === 2;
+
+  if (useFloor) {
+    for (let a=0; a<120; a++) {
+      const c = tryGenerateFloorLevel(lvl);
+      if (c) return c; // finalizeLevel already validated reachability internally
+    }
+    // fall through to normal generation if floor generation somehow fails repeatedly
+  }
+
   for (let a=0; a<120; a++) {
     const c = tryGenerateLevel(lvl);
     if (!c || c.platforms.length < CFG.minPlats) continue;
@@ -831,7 +1238,7 @@ function generateLevel(lvl) {
   const door  = {x:last.x+last.w/2-18, y:last.y-44, w:36, h:44};
   const spawn = {x:platforms[0].x+14, y:platforms[0].y-CFG.pSize};
   const fbWall = {x: platforms[0].x - 24, y: platforms[0].y - 120, w: 24, h: 120};
-  return {platforms, spikes:[], coins:[], fallers:[], spawn, spawnWall:fbWall, door, doorWall:null, key:null, biome, layout:"lr"};
+  return {platforms, bridge:[], lever:null, spikes:[], coins:[], fallers:[], spawn, spawnWall:fbWall, door, doorWall:null, key:null, windZones:[], biome, layout:"lr"};
 }
 
 // =========================================================================
@@ -856,8 +1263,10 @@ function updateMovingPlatforms(platforms) {
     m.t += 0.02;
     if (m.axis === "h") {
       plat.x = m.origin + Math.sin(m.t) * m.range;
+      plat.x = Math.max(0, Math.min(CFG.W - plat.w, plat.x));
     } else {
       plat.y = m.origin + Math.sin(m.t) * m.range;
+      plat.y = Math.max(40, Math.min(CFG.groundY - 20, plat.y));
     }
   }
 }
@@ -872,6 +1281,8 @@ function createPlayer(spawn) {
     vx:0, vy:0, onGround:false, wasOnGround:false,
     facing:1, animT:0, landSquash:0, slideDust:[],
     coyoteTime:0, jumpBuffer:0,
+    jumpHoldTime:0,    // frames the jump button has been held during ascent
+    jumpCutDone:false, // whether the early-release height cut has been applied for this jump
     prevY:0,           // Y before current frame move (for one-way collision)
     standingOn:null,   // reference to moving platform player is on
   };
@@ -889,14 +1300,43 @@ function updatePlayer(p) {
   if (keys.left)  { p.vx-=CFG.moveAccel; p.facing=-1; }
   if (keys.right) { p.vx+=CFG.moveAccel; p.facing= 1; }
   if (!keys.left&&!keys.right) { p.vx*=p.onGround?CFG.groundFric:CFG.airFric; if(Math.abs(p.vx)<0.04)p.vx=0; }
-  p.vx=Math.max(-CFG.moveSpeed,Math.min(CFG.moveSpeed,p.vx));
+
+  // Wind zones push the player horizontally while airborne
+  if (!p.onGround && level.windZones) {
+    for (const wz of level.windZones) {
+      if (p.x+p.w > wz.x && p.x < wz.x+wz.w && p.y+p.h > wz.y && p.y < wz.y+wz.h) {
+        p.vx += wz.dir * wz.strength;
+      }
+    }
+  }
+
+  const maxSpeed = CFG.moveSpeed + (level.windZones && level.windZones.length ? 1.2 : 0);
+  p.vx=Math.max(-maxSpeed,Math.min(maxSpeed,p.vx));
 
   if (p.onGround) p.coyoteTime=6; else if(p.coyoteTime>0) p.coyoteTime--;
   if (keys.up) p.jumpBuffer=8; else if(p.jumpBuffer>0) p.jumpBuffer--;
   if (p.jumpBuffer>0&&p.coyoteTime>0&&p.vy>=-1) {
-    p.vy=CFG.jumpForce; p.coyoteTime=0; p.jumpBuffer=0; sfxJump();
+    p.vy=CFG.jumpForce; p.coyoteTime=0; p.jumpBuffer=0; p.jumpHoldTime=0; p.jumpCutDone=false; sfxJump();
   }
-  if (!keys.up&&p.vy<0&&p.vy>CFG.jumpCutVy) p.vy=Math.max(p.vy*0.88,CFG.jumpCutVy);
+
+  // Variable jump height: holding the jump button sustains upward thrust
+  // for up to CFG.maxJumpHold frames, letting the player reach extra height.
+  // Releasing early applies ONE gentle cut (clamping vy toward jumpCutVy via
+  // a ramp, not an instant snap) for a snappy short hop without a velocity jolt.
+  if (p.vy < 0) {
+    if (keys.up && p.jumpHoldTime < CFG.maxJumpHold) {
+      p.jumpHoldTime++;
+      p.vy -= CFG.jumpHoldThrust; // extra upward push while held
+    } else if (!keys.up && !p.jumpCutDone) {
+      // Smoothly ease vy toward jumpCutVy instead of snapping — avoids a
+      // visible/felt discontinuity if vy is currently more negative than the cut target
+      if (p.vy < CFG.jumpCutVy) p.vy += (CFG.jumpCutVy - p.vy) * 0.35;
+      p.jumpCutDone = true; // only ease once per jump, then let gravity take over normally
+    }
+  } else {
+    p.jumpHoldTime = 0;
+  }
+
   p.vy+=p.vy<0?(keys.up?CFG.gravUp:CFG.gravUp*1.15):CFG.gravFall;
   if(p.vy>CFG.maxFall) p.vy=CFG.maxFall;
   p.prevY = p.y;   // remember pre-move Y for one-way collision
@@ -918,6 +1358,7 @@ function resetPlayerToSpawn() {
   player.x=level.spawn.x; player.y=level.spawn.y;
   player.vx=0; player.vy=0; player.onGround=false; player.wasOnGround=false;
   player.landSquash=0; player.slideDust=[]; player.animT=0; player.coyoteTime=0; player.jumpBuffer=0;
+  player.jumpHoldTime=0; player.jumpCutDone=false;
   player.prevY=player.y; player.standingOn=null;
   cameraX = Math.max(0, Math.min(CFG.W - CFG.VW, player.x + player.w/2 - CFG.VW/2));
 }
@@ -955,7 +1396,6 @@ function resolveSolidCollision(p, box) {
 }
 
 function resolvePlatformCollisions(p, platforms) {
-  p.onGround=false;
   for (const plat of platforms) {
     if (!rectsOverlap(p,plat)) continue;
 
@@ -980,16 +1420,37 @@ function checkCoinPickups(p) {
   }
 }
 
-function checkKeyPickup(p) {
-  const key = level.key;
-  if (!key || key.collected) return;
-  if (rectsOverlap(p, key)) {
-    key.collected = true;
-    spawnParticles(key.x+9, key.y+9, "#fbbf24", 16, 3);
+function checkLeverActivation(p) {
+  const lever = level.lever;
+  if (!lever || lever.pulled) return;
+  if (rectsOverlap(p, lever)) {
+    lever.pulled = true;
     sfxWin();
-    keyIndicator.classList.add("active");
+    spawnParticles(lever.x+11, lever.y+12, currentBiome.accent, 14, 3);
+    showBanner("⚙️ Bridge activated!", currentBiome.accent);
+    // Stagger the bridge reveal animation
+    level.bridge.forEach((b, i) => { b.active = true; });
   }
 }
+
+// Animate bridge segments rising into place once activated
+function updateBridge(bridge) {
+  for (const b of bridge) {
+    if (!b.active) continue;
+    if (b.revealDelay > 0) { b.revealDelay--; continue; }
+    if (b.revealProgress < 1) {
+      b.revealProgress = Math.min(1, b.revealProgress + 0.06);
+      // Occasional sparkle while rising — spawned here (update), not in draw
+      if (Math.random() < 0.25) {
+        const riseOffset = (1-b.revealProgress) * 40;
+        spawnParticles(b.x + b.w*Math.random(), b.y + riseOffset, currentBiome.accent, 1, 1.2);
+      }
+    }
+  }
+}
+
+// A bridge segment is solid (collidable) once its reveal animation completes
+function bridgeIsSolid(b) { return b.active && b.revealProgress >= 1; }
 
 
 // =========================================================================
@@ -1004,76 +1465,99 @@ function drawBackground(time) {
   const px = cameraX * 0.4;
 
   if (b.bgStars) {
+    // Batch all stars into a single fill using one path with multiple subpaths
+    ctx.fillStyle="#e8eaed";
+    ctx.beginPath();
     for (const s of stars) {
       s.twinkle+=0.018;
       const sx = s.x - px;
       if (sx < -10 || sx > CFG.VW+10) continue;
-      ctx.globalAlpha=s.alpha*(0.7+0.3*Math.sin(s.twinkle));
-      ctx.fillStyle="#e8eaed";
-      ctx.beginPath(); ctx.arc(sx,s.y,s.r,0,Math.PI*2); ctx.fill();
+      // Average alpha across stars (per-star alpha would need separate fills);
+      // twinkle still varies the radius slightly for a shimmer effect
+      const tw = 0.7+0.3*Math.sin(s.twinkle);
+      ctx.moveTo(sx+s.r*tw, s.y);
+      ctx.arc(sx, s.y, s.r*tw, 0, Math.PI*2);
     }
-    ctx.globalAlpha=1;
+    ctx.globalAlpha = 0.55;
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   if (b.name==="Forest") {
-    // Silhouette trees — span the world, parallax scrolled
+    // Silhouette trees — span the world, parallax scrolled, single fill path
     ctx.fillStyle="rgba(10,35,10,0.55)";
+    ctx.beginPath();
     const start = Math.floor(px/55)*55 - 55;
     for (let wx=start; wx<px+CFG.VW+55; wx+=55) {
       const tx = wx - px;
       const th = 60+Math.sin(wx*0.07)*20;
-      ctx.beginPath();
       ctx.moveTo(tx, CFG.groundY);
       ctx.lineTo(tx+14, CFG.groundY-th);
       ctx.lineTo(tx+28, CFG.groundY);
-      ctx.closePath(); ctx.fill();
+      ctx.closePath();
     }
+    ctx.fill();
   }
   if (b.name==="Volcano") {
     // Lava glow at bottom
     const g=ctx.createLinearGradient(0,CFG.groundY-10,0,CFG.H);
     g.addColorStop(0,"rgba(180,30,0,0)"); g.addColorStop(1,"rgba(255,80,0,0.38)");
     ctx.fillStyle=g; ctx.fillRect(0,CFG.groundY-10,CFG.VW,CFG.H-CFG.groundY+10);
-    // Floating embers
+    // Floating embers — single batched fill
+    ctx.fillStyle="#fb923c";
+    ctx.beginPath();
     for (const s of stars) {
       const sx = s.x - px;
       if (sx < -10 || sx > CFG.VW+10) continue;
       const flicker=0.5+0.5*Math.sin(s.twinkle*1.3+time*0.001);
-      ctx.globalAlpha=s.alpha*flicker*0.6;
-      ctx.fillStyle="#fb923c";
-      ctx.beginPath(); ctx.arc(sx,CFG.H-s.y*0.5,s.r*0.8,0,Math.PI*2); ctx.fill();
+      const sy = CFG.H-s.y*0.5;
+      ctx.moveTo(sx+s.r*0.8, sy);
+      ctx.arc(sx, sy, s.r*0.8, 0, Math.PI*2);
     }
-    ctx.globalAlpha=1;
+    ctx.globalAlpha = 0.35;
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
   if (b.name==="Dungeon") {
-    // Stone wall pattern — parallax scrolled
+    // Stone wall pattern — parallax scrolled, batched into one stroke
     ctx.strokeStyle="rgba(255,255,255,0.025)"; ctx.lineWidth=1;
-    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.VW,gy);ctx.stroke();}
+    ctx.beginPath();
+    for (let gy=0;gy<CFG.H;gy+=40){ ctx.moveTo(0,gy); ctx.lineTo(CFG.VW,gy); }
     const offX = ((px%40)+40)%40;
     for (let row=0;row<CFG.H/40;row++) {
       const off=(row%2)*20 - offX;
-      for (let gx=off;gx<CFG.VW;gx+=40){ctx.beginPath();ctx.moveTo(gx,row*40);ctx.lineTo(gx,row*40+40);ctx.stroke();}
+      for (let gx=off;gx<CFG.VW;gx+=40){ ctx.moveTo(gx,row*40); ctx.lineTo(gx,row*40+40); }
     }
-    // Torches — world-spaced, parallax scrolled
+    ctx.stroke();
+    // Torches — world-spaced, parallax scrolled. Glow batched, flames batched.
     const tStart = Math.floor(px/160)*160 - 160;
-    for (let wx=tStart; wx<px+CFG.VW+160; wx+=160) {
-      const tx = wx - px;
-      const fl=0.7+0.3*Math.sin(time*0.007+wx);
+    const torchXs = [];
+    for (let wx=tStart; wx<px+CFG.VW+160; wx+=160) torchXs.push(wx - px);
+
+    ctx.fillStyle="#f97316";
+    for (const tx of torchXs) {
+      const fl=0.7+0.3*Math.sin(time*0.007+tx+px);
       ctx.globalAlpha=fl*0.18;
-      ctx.fillStyle="#f97316";
       ctx.beginPath(); ctx.arc(tx,60,18,0,Math.PI*2); ctx.fill();
-      ctx.globalAlpha=1;
-      ctx.fillStyle="#f97316";
-      ctx.fillRect(tx-3,52,6,14);
-      ctx.fillStyle="#fbbf24";
-      ctx.beginPath(); ctx.moveTo(tx,48); ctx.lineTo(tx+5,58); ctx.lineTo(tx-5,58); ctx.closePath(); ctx.fill();
     }
+    ctx.globalAlpha=1;
+    ctx.beginPath();
+    for (const tx of torchXs) ctx.rect(tx-3,52,6,14);
+    ctx.fill();
+    ctx.fillStyle="#fbbf24";
+    ctx.beginPath();
+    for (const tx of torchXs) {
+      ctx.moveTo(tx,48); ctx.lineTo(tx+5,58); ctx.lineTo(tx-5,58); ctx.closePath();
+    }
+    ctx.fill();
   }
   if (b.bgGrid) {
     ctx.strokeStyle="rgba(255,255,255,0.022)"; ctx.lineWidth=1;
     const offX = ((px%40)+40)%40;
-    for (let gx=-offX;gx<CFG.VW;gx+=40){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,CFG.H);ctx.stroke();}
-    for (let gy=0;gy<CFG.H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(CFG.VW,gy);ctx.stroke();}
+    ctx.beginPath();
+    for (let gx=-offX;gx<CFG.VW;gx+=40){ ctx.moveTo(gx,0); ctx.lineTo(gx,CFG.H); }
+    for (let gy=0;gy<CFG.H;gy+=40){ ctx.moveTo(0,gy); ctx.lineTo(CFG.VW,gy); }
+    ctx.stroke();
   }
 
   // Pit gradient — viewport-fixed (always visible at bottom)
@@ -1086,47 +1570,236 @@ function drawPlatforms(platforms) {
   for (const plat of platforms) {
     const b = plat.biome || currentBiome;
     const col = b.platform[plat.color % b.platform.length];
-    ctx.fillStyle=col;
-    ctx.fillRect(plat.x,plat.y,plat.w,plat.h);
-    // Highlight
-    ctx.fillStyle="rgba(255,255,255,0.14)";
-    ctx.fillRect(plat.x,plat.y,plat.w,3);
-    // Moving platform indicator — pulsing edges
+    const x=plat.x, y=plat.y, w=plat.w, h=plat.h;
+
+    // ── Base fill ──────────────────────────────────────────────────────
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, w, h);
+
+    // ── Biome-specific texture ─────────────────────────────────────────
+    const name = b.name;
+
+    if (name === "Space") {
+      // Dark metallic panels with seams and corner bolts
+      ctx.fillStyle = "rgba(0,0,0,0.22)";
+      ctx.fillRect(x+1, y+1, w-2, h-2);
+      // Panel seams every 28px
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let sx = x+28; sx < x+w-8; sx += 28) {
+        ctx.moveTo(sx, y+2); ctx.lineTo(sx, y+h-2);
+      }
+      ctx.stroke();
+      // Corner bolts
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      [[x+4,y+3],[x+w-5,y+3],[x+4,y+h-4],[x+w-5,y+h-4]].forEach(([bx,by])=>{
+        ctx.beginPath(); ctx.arc(bx,by,1.5,0,Math.PI*2); ctx.fill();
+      });
+    } else if (name === "Forest") {
+      // Wooden planks with grain lines and knots
+      ctx.fillStyle = "rgba(0,0,0,0.15)";
+      ctx.fillRect(x+1, y+1, w-2, h-2);
+      ctx.strokeStyle = "rgba(0,0,0,0.18)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      // Plank dividers every 22px
+      for (let sx = x+22; sx < x+w-6; sx += 22) {
+        ctx.moveTo(sx, y+1); ctx.lineTo(sx, y+h-1);
+      }
+      ctx.stroke();
+      // Grain lines
+      ctx.strokeStyle = "rgba(0,0,0,0.09)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x+2, y+h*0.38); ctx.lineTo(x+w-2, y+h*0.38);
+      ctx.moveTo(x+2, y+h*0.68); ctx.lineTo(x+w-2, y+h*0.68);
+      ctx.stroke();
+      // Knot at plank centre
+      if (w > 50) {
+        ctx.strokeStyle = "rgba(0,0,0,0.14)";
+        ctx.beginPath();
+        ctx.ellipse(x+w*0.5, y+h*0.5, 4, 3, 0, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    } else if (name === "Dungeon") {
+      // Stone blocks with mortar lines and random cracks
+      ctx.fillStyle = "rgba(0,0,0,0.20)";
+      ctx.fillRect(x+1, y+1, w-2, h-2);
+      // Mortar horizontal
+      ctx.strokeStyle = "rgba(0,0,0,0.30)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x+1, y+h/2); ctx.lineTo(x+w-1, y+h/2);
+      ctx.stroke();
+      // Mortar vertical — staggered like real stonework
+      ctx.beginPath();
+      const blockW = 26;
+      for (let bx = x + blockW; bx < x+w-6; bx += blockW) {
+        ctx.moveTo(bx, y+1); ctx.lineTo(bx, y+h/2-1);
+      }
+      for (let bx = x + blockW*0.5; bx < x+w-6; bx += blockW) {
+        ctx.moveTo(bx, y+h/2+1); ctx.lineTo(bx, y+h-1);
+      }
+      ctx.stroke();
+      // Crack detail
+      ctx.strokeStyle = "rgba(0,0,0,0.22)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const crackX = x + w*0.3;
+      ctx.moveTo(crackX, y+2);
+      ctx.lineTo(crackX+3, y+h*0.4);
+      ctx.lineTo(crackX+1, y+h-2);
+      ctx.stroke();
+    } else if (name === "Volcano") {
+      // Scorched rock with glowing lava cracks
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fillRect(x+1, y+1, w-2, h-2);
+      // Lava cracks — glowing orange lines
+      ctx.strokeStyle = "rgba(255,120,0,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = "rgba(255,80,0,0.6)";
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(x+6, y+h-2);
+      ctx.lineTo(x+w*0.35, y+2);
+      ctx.lineTo(x+w*0.5, y+h*0.6);
+      ctx.lineTo(x+w*0.72, y+2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      // Rock surface shade
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.fillRect(x+2, y+1, w-4, 3);
+    }
+
+    // ── Top highlight (all biomes) ─────────────────────────────────────
+    ctx.fillStyle = "rgba(255,255,255,0.13)";
+    ctx.fillRect(x, y, w, 3);
+
+    // ── Moving platform indicator ──────────────────────────────────────
     if (plat.moving) {
-      ctx.strokeStyle="rgba(255,255,255,0.35)";
-      ctx.lineWidth=1;
-      ctx.strokeRect(plat.x,plat.y,plat.w,plat.h);
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
     }
   }
 }
 
+// Persistent ambient particles for wind zones — drift continuously and
+// respawn at the upwind edge, separate from the short-lived burst particles.
+// ── Wind leaves — level-wide, viewport-space (no world translate needed) ──
+let windLeaves = [];
+let windLeavesLevelRef = null;
+
+// Biome-specific leaf colours
+function leafColor(biomeName) {
+  if (biomeName === "Forest")  return ["rgba(120,200,80,0.7)","rgba(160,220,90,0.65)","rgba(90,170,60,0.6)"];
+  if (biomeName === "Volcano") return ["rgba(220,80,30,0.65)","rgba(200,50,20,0.6)","rgba(240,120,40,0.55)"];
+  if (biomeName === "Dungeon") return ["rgba(180,160,120,0.5)","rgba(140,120,90,0.45)"];
+  return ["rgba(180,210,255,0.5)","rgba(200,230,255,0.45)"]; // Space: dust motes
+}
+
+function initWindLeaves(windZones) {
+  if (windLeavesLevelRef === windZones) return;
+  windLeavesLevelRef = windZones;
+  windLeaves = [];
+  if (!windZones || !windZones.length) return;
+  const wz = windZones[0]; // single full-level zone
+  const cols = leafColor(currentBiome.name);
+  for (let i=0; i<22; i++) {
+    windLeaves.push({
+      x: Math.random() * CFG.VW,   // viewport-space X
+      y: Math.random() * CFG.H,
+      vy: -0.15 + Math.random()*0.3,
+      r: 2.5 + Math.random()*3.5,
+      spin: Math.random()*Math.PI*2,
+      spinSpeed: (Math.random()-0.5)*0.08,
+      wobblePhase: Math.random()*Math.PI*2,
+      wobbleAmp: 2.5 + Math.random()*3,
+      speed: (0.8 + Math.random()*1.2) * (wz.strength * 35),
+      col: cols[Math.floor(Math.random()*cols.length)],
+      dir: wz.dir,
+    });
+  }
+}
+
+function updateWindLeaves() {
+  for (const p of windLeaves) {
+    p.x += p.speed * p.dir;
+    p.y += p.vy + Math.sin(p.wobblePhase) * 0.4;
+    p.wobblePhase += 0.025;
+    p.spin += p.spinSpeed;
+    // Wrap around viewport
+    if (p.dir > 0 && p.x > CFG.VW + 10) p.x = -10;
+    if (p.dir < 0 && p.x < -10) p.x = CFG.VW + 10;
+    if (p.y > CFG.H + 10) p.y = -10;
+    if (p.y < -10) p.y = CFG.H + 10;
+  }
+}
+
+function drawWindZones(windZones, time) {
+  if (!windZones || !windZones.length) return;
+  initWindLeaves(windZones);
+  updateWindLeaves();
+  // Draw leaves in viewport space (no camera translate — already outside ctx.save/restore)
+  // NOTE: render() calls this BEFORE ctx.save/translate, so coords are viewport-space.
+  for (const p of windLeaves) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.spin);
+    ctx.fillStyle = p.col;
+    ctx.beginPath();
+    // Leaf shape: pointed ellipse with a small stem
+    ctx.ellipse(0, 0, p.r, p.r*0.45, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 function drawSpikes(spikes) {
+  if (!spikes.length) return;
   const b = currentBiome;
   ctx.shadowColor = b.spikeGlow; ctx.shadowBlur = 6;
   ctx.fillStyle = b.spike;
+  ctx.beginPath();
   for (const s of spikes) {
-    ctx.beginPath();
     ctx.moveTo(s.x+s.w/2, s.y);
     ctx.lineTo(s.x+s.w, s.y+s.h);
     ctx.lineTo(s.x, s.y+s.h);
-    ctx.closePath(); ctx.fill();
+    ctx.closePath();
   }
+  ctx.fill();
   ctx.shadowBlur=0;
 }
 
 
 function drawCoins(coins, time) {
-  for (const coin of coins) {
-    if (coin.collected) continue;
+  const visible = coins.filter(c => !c.collected);
+  if (!visible.length) return;
+
+  // Pass 1: glowing coin bodies, batched into one path
+  ctx.shadowColor="rgba(251,191,36,0.55)"; ctx.shadowBlur=8;
+  ctx.fillStyle="#fbbf24";
+  ctx.beginPath();
+  for (const coin of visible) {
     const bob=Math.sin(time*0.003+coin.bobOffset)*3;
     const cx=coin.x+7, cy=coin.y+7+bob;
-    ctx.shadowColor="rgba(251,191,36,0.55)"; ctx.shadowBlur=8;
-    ctx.fillStyle="#fbbf24";
-    ctx.beginPath(); ctx.arc(cx,cy,7,0,Math.PI*2); ctx.fill();
-    ctx.shadowBlur=0;
-    ctx.fillStyle="rgba(255,255,255,0.45)";
-    ctx.beginPath(); ctx.arc(cx-2,cy-2,2.5,0,Math.PI*2); ctx.fill();
+    ctx.moveTo(cx+7, cy);
+    ctx.arc(cx,cy,7,0,Math.PI*2);
   }
+  ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Pass 2: highlight dots, batched, no shadow
+  ctx.fillStyle="rgba(255,255,255,0.45)";
+  ctx.beginPath();
+  for (const coin of visible) {
+    const bob=Math.sin(time*0.003+coin.bobOffset)*3;
+    const cx=coin.x+7, cy=coin.y+7+bob;
+    ctx.moveTo(cx-2+2.5, cy-2);
+    ctx.arc(cx-2,cy-2,2.5,0,Math.PI*2);
+  }
+  ctx.fill();
 }
 
 function drawSpawn(spawn) {
@@ -1136,50 +1809,71 @@ function drawSpawn(spawn) {
 }
 
 function drawDoor(door, time) {
-  const locked = level.key && !level.key.collected;
   const pulse=0.5+0.5*Math.sin(time*0.006);
+  ctx.shadowColor=currentBiome.accent; ctx.shadowBlur=12+pulse*16;
+  ctx.fillStyle="rgba(251,191,36,0.4)";
+  ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
+  ctx.fillStyle="#fbbf24";
+  ctx.fillRect(door.x,door.y,door.w,door.h);
+  ctx.fillStyle="#1a1408";
+  ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
+  ctx.shadowBlur=0;
+  ctx.strokeStyle=`rgba(255,255,255,${0.3+pulse*0.4})`; ctx.lineWidth=2;
+  ctx.strokeRect(door.x,door.y,door.w,door.h);
+}
 
-  if (locked) {
-    // Greyed-out, no glow — clearly inactive
-    ctx.fillStyle="rgba(120,120,130,0.25)";
-    ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
-    ctx.fillStyle="#4b5563";
-    ctx.fillRect(door.x,door.y,door.w,door.h);
-    ctx.fillStyle="#1f2430";
-    ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
-    // Lock icon
-    ctx.fillStyle="#9aa0a6";
-    ctx.fillRect(door.x+door.w/2-5, door.y+door.h/2-2, 10, 8);
-    ctx.strokeStyle="#9aa0a6"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(door.x+door.w/2, door.y+door.h/2-2, 4, Math.PI, Math.PI*2); ctx.stroke();
-    ctx.strokeStyle="rgba(255,255,255,0.15)"; ctx.lineWidth=2;
-    ctx.strokeRect(door.x,door.y,door.w,door.h);
-  } else {
-    ctx.shadowColor=currentBiome.accent; ctx.shadowBlur=12+pulse*16;
-    ctx.fillStyle="rgba(251,191,36,0.4)";
-    ctx.fillRect(door.x-6,door.y-6,door.w+12,door.h+12);
-    ctx.fillStyle="#fbbf24";
-    ctx.fillRect(door.x,door.y,door.w,door.h);
-    ctx.fillStyle="#1a1408";
-    ctx.fillRect(door.x+10,door.y+8,door.w-20,door.h-16);
-    ctx.shadowBlur=0;
-    ctx.strokeStyle=`rgba(255,255,255,${0.3+pulse*0.4})`; ctx.lineWidth=2;
-    ctx.strokeRect(door.x,door.y,door.w,door.h);
+function drawLever(lever, time) {
+  if (!lever) return;
+  const cx = lever.x + lever.w/2;
+  const baseY = lever.y + lever.h - 4;
+  // Base plinth
+  ctx.fillStyle = "#44403c";
+  ctx.fillRect(lever.x, baseY, lever.w, 6);
+  // Lever arm — rotates from upright (idle) to pulled (down/sideways)
+  const angle = lever.pulled ? Math.PI*0.32 : 0;
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.rotate(angle);
+  ctx.strokeStyle = lever.pulled ? "#22c55e" : currentBiome.accent;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -lever.h+4);
+  ctx.stroke();
+  // Handle knob
+  ctx.fillStyle = lever.pulled ? "#22c55e" : currentBiome.accent;
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = lever.pulled ? 4 : 10;
+  ctx.beginPath(); ctx.arc(0, -lever.h+4, 5, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // Subtle pulsing glow when not yet pulled — draws attention
+  if (!lever.pulled) {
+    const pulse = 0.4 + 0.3*Math.sin(time*0.006);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = currentBiome.accent;
+    ctx.beginPath(); ctx.arc(cx, lever.y-6, 3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 
-function drawKey(key, time) {
-  if (!key || key.collected) return;
-  const bob = Math.sin(time*0.004 + key.bobOffset) * 4;
-  const cx = key.x+9, cy = key.y+9+bob;
-  ctx.shadowColor="rgba(251,191,36,0.6)"; ctx.shadowBlur=10;
-  ctx.fillStyle="#fbbf24";
-  // Simple key shape: circle head + rectangular shaft + teeth
-  ctx.beginPath(); ctx.arc(cx-3, cy, 5, 0, Math.PI*2); ctx.fill();
-  ctx.fillRect(cx-1, cy-2, 9, 4);
-  ctx.fillRect(cx+4, cy+2, 2, 4);
-  ctx.fillRect(cx+7, cy+2, 2, 4);
-  ctx.shadowBlur=0;
+function drawBridge(bridge, time) {
+  for (const b of bridge) {
+    if (!b.active || b.revealProgress <= 0) continue;
+    const t = b.revealProgress;
+    // Segments rise up from below into position
+    const riseOffset = (1-t) * 40;
+    const alpha = t;
+    const by = b.y + riseOffset;
+    ctx.globalAlpha = alpha;
+    const col = b.biome.platform[b.color % b.biome.platform.length];
+    ctx.fillStyle = col;
+    ctx.fillRect(b.x, by, b.w, b.h);
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(b.x, by, b.w, 3);
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawPlayer(p) {
@@ -1201,10 +1895,12 @@ function drawPlayer(p) {
 
 function render(time) {
   drawBackground(time);
+  drawWindZones(level.windZones, time); // viewport-space — must be before camera translate
   ctx.save();
   ctx.translate(-cameraX, 0);
   drawPlatforms(level.platforms);
-  drawKey(level.key, time);
+  drawBridge(level.bridge, time);
+  drawLever(level.lever, time);
   drawDoor(level.door, time);
   drawSpikes(level.spikes);
   drawCoins(level.coins, time);
@@ -1224,7 +1920,6 @@ const shopLifeBtn   = document.getElementById("shop-life");
 const shopSkipBtn   = document.getElementById("shop-skip");
 const shopCloseBtn  = document.getElementById("shop-close");
 const shieldPip     = document.getElementById("shield-pip");
-const keyIndicator  = document.getElementById("key-indicator");
 
 function openShop() {
   shopOpen = true;
@@ -1327,16 +2022,15 @@ function startLevel(advance) {
     startTimer(22);
   } else {
     level = generateLevel(levelNumber);
+    if ((levelNumber-1) % 5 === 2) {
+      showBanner("⛰️ Climb to the exit!", level.biome.accent);
+    }
   }
 
   if (currentBiome.name !== level.biome.name) startMusic(level.biome.name.toLowerCase());
   currentBiome = level.biome;
   player = createPlayer(level.spawn);
   cameraX = Math.max(0, Math.min(CFG.W - CFG.VW, player.x + player.w/2 - CFG.VW/2));
-
-  // Key indicator: visible (greyed) if level has a key, hidden if not
-  keyIndicator.style.display = level.key ? "inline" : "none";
-  keyIndicator.classList.remove("active");
 
   updateHud();
 }
@@ -1379,13 +2073,40 @@ function completeLevel() {
   },320);
 }
 
+function renderLeaderboard(newEntryIndex) {
+  leaderboardEl.innerHTML = "";
+  leaderboard.forEach((entry, i) => {
+    const row = document.createElement("div");
+    row.className = "lb-row" + (i === newEntryIndex ? " lb-new" : "");
+    row.innerHTML = `<span class="lb-rank">#${i+1}</span><span class="lb-name">${entry.name}</span><span class="lb-score">${entry.score}</span>`;
+    leaderboardEl.appendChild(row);
+  });
+}
+
 function showGameOver() {
   gameOver=true;
   if(score>record){record=score;localStorage.setItem("pfRecord",record);}
+
+  // Insert this run's score into the top-10 leaderboard, sorted descending.
+  // If it doesn't make the cut, the table just shows the existing top 10.
+  const entry = { name:"You", score };
+  let insertIndex = leaderboard.findIndex(e => score > e.score);
+  let newEntryIndex = -1;
+  if (insertIndex === -1 && leaderboard.length < 10) {
+    leaderboard.push(entry);
+    newEntryIndex = leaderboard.length - 1;
+  } else if (insertIndex !== -1) {
+    leaderboard.splice(insertIndex, 0, entry);
+    leaderboard = leaderboard.slice(0, 10);
+    newEntryIndex = insertIndex;
+  }
+  saveLeaderboard(leaderboard);
+
   ovTitle.textContent="GAME OVER"; ovTitle.style.color="#f87171";
   ovSub.textContent=`You reached level ${levelNumber} · ${currentBiome.name}`;
   ovScore.textContent=`Score: ${score}  ·  Coins: ${totalCoins}`;
   ovRecord.textContent=`Best: ${record}`;
+  renderLeaderboard(newEntryIndex);
   overlay.classList.add("active");
   sfxGameOver();
 }
@@ -1428,20 +2149,24 @@ function gameLoop(time) {
     updateTimer(dt);
     player.wasOnGround=player.onGround;
     updateMovingPlatforms(level.platforms);
+    updateBridge(level.bridge);
     updatePlayer(player);
+    player.onGround = false;
     resolvePlatformCollisions(player,level.platforms);
+    // Solid bridge segments act as platforms too
+    const solidBridge = level.bridge.filter(bridgeIsSolid);
+    if (solidBridge.length) resolvePlatformCollisions(player, solidBridge);
     resolveWallCollision(player, level.spawnWall);
-    if (level.key && !level.key.collected) resolveSolidCollision(player, level.doorWall); // locked door blocks until key collected
     if(player.onGround&&!player.wasOnGround) player.landSquash=Math.max(player.landSquash,10);
     updatePlayerMotionFx(player);
     updateParticles();
     checkCoinPickups(player);
-    checkKeyPickup(player);
+    checkLeverActivation(player);
     updateCamera();
 
     if      (playerFellInPit(player))                            killPlayer();
     else if (!isDead&&level.spikes.some(s=>rectsOverlap(player,s))) killPlayer();
-    else if (!isDead&&(!level.key||level.key.collected)&&rectsOverlap(player,level.door)) completeLevel();
+    else if (!isDead&&rectsOverlap(player,level.door))              completeLevel();
 
     if(deathFlash>0) deathFlash=Math.max(0,deathFlash-0.08);
   } else if (!gameOver&&levelTransition) {
