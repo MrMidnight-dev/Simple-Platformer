@@ -668,7 +668,7 @@ function tryGenerateLevel(lvl) {
   }
 
   const startW = randInt(95,140);
-  platforms.push({x:curX, y:curY, w:startW, h:CFG.platH, color:0, biome});
+  platforms.push({x:curX, y:curY, w:startW, h:CFG.platH, color:0, biome, textureVariant:randInt(0,3)});
 
   for (let i=1; i<count; i++) {
     const prev   = platforms[platforms.length-1];
@@ -729,7 +729,7 @@ function tryGenerateLevel(lvl) {
 
     if (!placed) continue;
 
-    const platObj = {x:newX, y:newY, w:newW, h:CFG.platH, color:i%biome.platform.length, biome};
+    const platObj = {x:newX, y:newY, w:newW, h:CFG.platH, color:i%biome.platform.length, biome, textureVariant:randInt(0,3)};
 
     // Moving platforms: only mid-level, only if enough horizontal gap from neighbours
     if (!isLast && i>1 && Math.random() < diff.movingChance) {
@@ -849,7 +849,7 @@ function finalizeLevel(platforms, spikes, coins, biome, layout, diff, reach, spa
   // Leaves drift across the whole screen; wind pushes player in air.
   // ════════════════════════════════════════════════════════════════════
   const windZones = [];
-  if (Math.random() < 0.55) {
+  if (Math.random() < 0.25) {
     const dir = Math.random() < 0.5 ? -1 : 1;
     windZones.push({
       x: 0, y: 0, w: CFG.W, h: CFG.H,
@@ -977,7 +977,7 @@ function finalizeLevel(platforms, spikes, coins, biome, layout, diff, reach, spa
         let bY = Math.max(40, branchFrom.y + bDy);
         bX = Math.max(8, Math.min(CFG.W - bW - 8, bX));
 
-        const leverPlat = {x:bX, y:bY, w:bW, h:CFG.platH, color:(branchFrom.color+2)%biome.platform.length, biome};
+        const leverPlat = {x:bX, y:bY, w:bW, h:CFG.platH, color:(branchFrom.color+2)%biome.platform.length, biome, textureVariant:randInt(0,3)};
 
         const dx = Math.max(0, bX > branchFrom.x ? bX - (branchFrom.x+branchFrom.w) : branchFrom.x - (bX+bW));
         const dyAbs = Math.abs(bY - branchFrom.y);
@@ -1103,7 +1103,7 @@ function tryGenerateFloorLevel(lvl) {
 
   // The floor: one giant platform spanning the whole world width.
   // Its top surface sits at groundY, same as normal levels' lowest point.
-  const floor = {x:0, y:CFG.groundY, w:CFG.W, h:CFG.H-CFG.groundY+40, color:0, biome};
+  const floor = {x:0, y:CFG.groundY, w:CFG.W, h:CFG.H-CFG.groundY+40, color:0, biome, isFloor:true, textureVariant:0};
 
   const platforms = [floor];
 
@@ -1173,15 +1173,7 @@ function tryGenerateFloorLevel(lvl) {
 
     prevRef = {x:newX, y:newY, w:newW}; // advance the chain anchor
 
-    const platObj = {x:newX, y:newY, w:newW, h:CFG.platH, color:i%biome.platform.length, biome};
-
-    // Occasional spikes on wide-enough mid platforms
-    if (!isLast && i>1 && newW >= 100 && Math.random() < diff.spikeChance*0.7) {
-      const maxFit = maxSpikesForWidth(newW);
-      if (maxFit >= 1) {
-        spikes.push({x:newX+10, y:newY-14, w:14, h:14});
-      }
-    }
+    const platObj = {x:newX, y:newY, w:newW, h:CFG.platH, color:i%biome.platform.length, biome, textureVariant:randInt(0,3)};
 
     // Coins along the climb
     if (!isLast && Math.random() < diff.coinChance) {
@@ -1231,7 +1223,7 @@ function generateLevel(lvl) {
       x: 40 + i*stepX,
       y: CFG.groundY - 80 - (i%4)*28,
       w: 110, h: CFG.platH,
-      color: i%biome.platform.length, biome
+      color: i%biome.platform.length, biome, textureVariant:i%4
     });
   }
   const last = platforms[n-1];
@@ -1301,26 +1293,17 @@ function updatePlayer(p) {
   if (keys.right) { p.vx+=CFG.moveAccel; p.facing= 1; }
   if (!keys.left&&!keys.right) { p.vx*=p.onGround?CFG.groundFric:CFG.airFric; if(Math.abs(p.vx)<0.04)p.vx=0; }
 
- // Wind zones push the player horizontally while airborne
-if (!p.onGround && level.windZones) {
+  // Wind zones push the player horizontally while airborne
+  if (!p.onGround && level.windZones) {
     for (const wz of level.windZones) {
-        // Проверка на пересечение с зоной ветра
-        if (p.x + p.w > wz.x && p.x < wz.x + wz.w && p.y + p.h > wz.y && p.y < wz.y + wz.h) {
-            // Добавление силы ветра к скорости
-            p.vx += wz.dir * wz.strength * 0.1; // Уменьшить влияние ветра на земле
-        }
+      if (p.x+p.w > wz.x && p.x < wz.x+wz.w && p.y+p.h > wz.y && p.y < wz.y+wz.h) {
+        p.vx += wz.dir * wz.strength;
+      }
     }
-}
+  }
 
-// Добавление порывов ветра (случайные импульсы)
-if (!p.onGround && level.windZones && Math.random() < 0.02) { // 2% шанс на порыв
-    const windImpulse = (Math.random() - 0.5) * 2; // Случайный порыв от -1 до 1
-    p.vx += windImpulse;
-}
-
-// Ограничение скорости
-const maxSpeed = CFG.moveSpeed + (level.windZones && level.windZones.length ? 1.2 : 0);
-p.vx = Math.max(-maxSpeed, Math.min(maxSpeed, p.vx));
+  const maxSpeed = CFG.moveSpeed + (level.windZones && level.windZones.length ? 1.2 : 0);
+  p.vx=Math.max(-maxSpeed,Math.min(maxSpeed,p.vx));
 
   if (p.onGround) p.coyoteTime=6; else if(p.coyoteTime>0) p.coyoteTime--;
   if (keys.up) p.jumpBuffer=8; else if(p.jumpBuffer>0) p.jumpBuffer--;
@@ -1575,123 +1558,314 @@ function drawBackground(time) {
   ctx.fillStyle=pitG; ctx.fillRect(0,CFG.groundY-20,CFG.VW,CFG.H-CFG.groundY+20);
 }
 
-function drawPlatforms(platforms) {
-  for (const plat of platforms) {
-    const b = plat.biome || currentBiome;
-    const col = b.platform[plat.color % b.platform.length];
-    const x=plat.x, y=plat.y, w=plat.w, h=plat.h;
+// =========================================================================
+// PIXEL-ART TEXTURE HELPERS
+// =========================================================================
+// Deterministic per-platform "random" so textures don't flicker frame to
+// frame — seeded by the platform's own position (stable across redraws).
+function pixHash(x, y, salt) {
+  let h = (x*374761393 + y*668265263 + salt*2246822519) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h / 4294967296; // 0..1
+}
+function pixInt(x, y, salt, min, max) {
+  return min + Math.floor(pixHash(x, y, salt) * (max-min+1));
+}
 
-    // ── Base fill ──────────────────────────────────────────────────────
-    ctx.fillStyle = col;
-    ctx.fillRect(x, y, w, h);
-
-    // ── Biome-specific texture ─────────────────────────────────────────
-    const name = b.name;
-
-    if (name === "Space") {
-      // Dark metallic panels with seams and corner bolts
-      ctx.fillStyle = "rgba(0,0,0,0.22)";
-      ctx.fillRect(x+1, y+1, w-2, h-2);
-      // Panel seams every 28px
-      ctx.strokeStyle = "rgba(255,255,255,0.10)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let sx = x+28; sx < x+w-8; sx += 28) {
-        ctx.moveTo(sx, y+2); ctx.lineTo(sx, y+h-2);
-      }
-      ctx.stroke();
-      // Corner bolts
-      ctx.fillStyle = "rgba(255,255,255,0.25)";
-      [[x+4,y+3],[x+w-5,y+3],[x+4,y+h-4],[x+w-5,y+h-4]].forEach(([bx,by])=>{
-        ctx.beginPath(); ctx.arc(bx,by,1.5,0,Math.PI*2); ctx.fill();
-      });
-    } else if (name === "Forest") {
-      // Wooden planks with grain lines and knots
-      ctx.fillStyle = "rgba(0,0,0,0.15)";
-      ctx.fillRect(x+1, y+1, w-2, h-2);
-      ctx.strokeStyle = "rgba(0,0,0,0.18)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      // Plank dividers every 22px
-      for (let sx = x+22; sx < x+w-6; sx += 22) {
-        ctx.moveTo(sx, y+1); ctx.lineTo(sx, y+h-1);
-      }
-      ctx.stroke();
-      // Grain lines
-      ctx.strokeStyle = "rgba(0,0,0,0.09)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x+2, y+h*0.38); ctx.lineTo(x+w-2, y+h*0.38);
-      ctx.moveTo(x+2, y+h*0.68); ctx.lineTo(x+w-2, y+h*0.68);
-      ctx.stroke();
-      // Knot at plank centre
-      if (w > 50) {
-        ctx.strokeStyle = "rgba(0,0,0,0.14)";
-        ctx.beginPath();
-        ctx.ellipse(x+w*0.5, y+h*0.5, 4, 3, 0, 0, Math.PI*2);
-        ctx.stroke();
-      }
-    } else if (name === "Dungeon") {
-      // Stone blocks with mortar lines and random cracks
-      ctx.fillStyle = "rgba(0,0,0,0.20)";
-      ctx.fillRect(x+1, y+1, w-2, h-2);
-      // Mortar horizontal
-      ctx.strokeStyle = "rgba(0,0,0,0.30)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x+1, y+h/2); ctx.lineTo(x+w-1, y+h/2);
-      ctx.stroke();
-      // Mortar vertical — staggered like real stonework
-      ctx.beginPath();
-      const blockW = 26;
-      for (let bx = x + blockW; bx < x+w-6; bx += blockW) {
-        ctx.moveTo(bx, y+1); ctx.lineTo(bx, y+h/2-1);
-      }
-      for (let bx = x + blockW*0.5; bx < x+w-6; bx += blockW) {
-        ctx.moveTo(bx, y+h/2+1); ctx.lineTo(bx, y+h-1);
-      }
-      ctx.stroke();
-      // Crack detail
-      ctx.strokeStyle = "rgba(0,0,0,0.22)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      const crackX = x + w*0.3;
-      ctx.moveTo(crackX, y+2);
-      ctx.lineTo(crackX+3, y+h*0.4);
-      ctx.lineTo(crackX+1, y+h-2);
-      ctx.stroke();
-    } else if (name === "Volcano") {
-      // Scorched rock with glowing lava cracks
-      ctx.fillStyle = "rgba(0,0,0,0.28)";
-      ctx.fillRect(x+1, y+1, w-2, h-2);
-      // Lava cracks — glowing orange lines
-      ctx.strokeStyle = "rgba(255,120,0,0.55)";
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = "rgba(255,80,0,0.6)";
-      ctx.shadowBlur = 4;
-      ctx.beginPath();
-      ctx.moveTo(x+6, y+h-2);
-      ctx.lineTo(x+w*0.35, y+2);
-      ctx.lineTo(x+w*0.5, y+h*0.6);
-      ctx.lineTo(x+w*0.72, y+2);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      // Rock surface shade
-      ctx.fillStyle = "rgba(0,0,0,0.12)";
-      ctx.fillRect(x+2, y+1, w-4, 3);
-    }
-
-    // ── Top highlight (all biomes) ─────────────────────────────────────
-    ctx.fillStyle = "rgba(255,255,255,0.13)";
-    ctx.fillRect(x, y, w, 3);
-
-    // ── Moving platform indicator ──────────────────────────────────────
-    if (plat.moving) {
-      ctx.strokeStyle = "rgba(255,255,255,0.35)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, w, h);
+// Draws a grid of square "pixels" clipped to (x,y,w,h), size `px` each.
+// `fn(col,row,cx,cy)` returns a fill color string or null (skip that pixel).
+function drawPixelGrid(gctx, x, y, w, h, px, fn) {
+  const cols = Math.ceil(w/px), rows = Math.ceil(h/px);
+  for (let r=0; r<rows; r++) {
+    for (let c=0; c<cols; c++) {
+      const cx = x + c*px, cy = y + r*px;
+      const pw = Math.min(px, x+w-cx), ph = Math.min(px, y+h-cy);
+      if (pw<=0||ph<=0) continue;
+      const col = fn(c, r, cx, cy);
+      if (!col) continue;
+      gctx.fillStyle = col;
+      gctx.fillRect(cx, cy, pw, ph);
     }
   }
+}
+
+// ── SPACE biome — 4 platform variants + 1 floor variant ──────────────────
+// Palette: dark hull base, cyan/blue trim, warning amber accents.
+function drawSpacePixelTexture(gctx, x, y, w, h, variant, isFloor, seedX) {
+  const PX = 4; // pixel size
+  const base   = "#1c2333";
+  const base2  = "#141a28";
+  const trim   = "#3b82f6";
+  const trimLt = "#7dd3fc";
+  const dark   = "#0b0e16";
+  const amber  = "#fbbf24";
+  const bolt   = "#5b6578";
+
+  drawPixelGrid(gctx, x, y, w, h, PX, (c, r, cx, cy) => {
+    const gx = seedX + c; // stable across the platform regardless of scroll
+
+    if (isFloor) {
+      // Grated metal floor: horizontal rows alternate base/dark with rivet dots
+      const rowType = r % 3;
+      if (rowType === 0) return dark;
+      if (pixInt(gx, r, 7, 0, 9) === 0) return trim; // occasional lit seam
+      return (Math.floor(gx/2) % 2 === 0) ? base : base2;
+    }
+
+    // Shared edge framing for all variants: 1px dark border pixel
+    const isEdge = c===0 || r===0 || c===Math.ceil(w/PX)-1 || r===Math.ceil(h/PX)-1;
+
+    if (variant === 0) {
+      // Riveted hull plating — checkerboard panels + corner bolts
+      if (isEdge) return dark;
+      const panelC = Math.floor(gx/6), panelR = Math.floor(r/4);
+      const alt = (panelC+panelR) % 2 === 0;
+      if ((c%6===0 || r%4===0)) return dark; // panel seams
+      if ((c%6===1 && r%4===1)) return bolt; // rivet corner
+      return alt ? base : base2;
+    }
+
+    if (variant === 1) {
+      // Warning stripes — diagonal amber/dark hazard bands near top edge
+      if (r===0) return (Math.floor(gx/2)%2===0) ? amber : dark;
+      if (r===1) return (Math.floor(gx/2)%2===0) ? dark : amber;
+      if (isEdge) return dark;
+      return (Math.floor((gx+r)/3) % 2 === 0) ? base : base2;
+    }
+
+    if (variant === 2) {
+      // Vented panel — horizontal vent slats with glowing trim lines
+      if (isEdge) return dark;
+      const slat = r % 3;
+      if (slat === 1) return trim;
+      if (slat === 2 && pixInt(gx,r,3,0,4)===0) return trimLt;
+      return base;
+    }
+
+    // variant === 3: Cracked / damaged plating — irregular dark fractures
+    if (isEdge) return dark;
+    const crack = pixHash(gx, r, 11);
+    if (crack < 0.06) return dark;
+    if (crack < 0.09) return "#2a3245";
+    return (Math.floor(gx/5)+r) % 2 === 0 ? base : base2;
+  });
+}
+
+function drawPlatforms(platforms) {
+  for (const plat of platforms) {
+    const x=plat.x, y=plat.y, w=plat.w, h=plat.h;
+
+    // ── Texture caching ───────────────────────────────────────────────
+    // Pixel-grid textures do many small fillRect calls (a full-width floor
+    // platform can need 10,000+). Redoing that every single frame caused
+    // visible stutter/flicker. Each platform's appearance never changes
+    // after generation, so render it once into an offscreen canvas and
+    // just blit that image every frame from then on.
+    if (!plat._tex) {
+      const b = plat.biome || currentBiome;
+      const col = b.platform[plat.color % b.platform.length];
+      const variant = plat.textureVariant || 0;
+      const seedX = Math.floor(x/4); // stable pixel-grid alignment per platform
+
+      const off = document.createElement("canvas");
+      off.width = Math.max(1, Math.ceil(w));
+      off.height = Math.max(1, Math.ceil(h));
+      const octx = off.getContext("2d");
+
+      octx.fillStyle = col;
+      octx.fillRect(0, 0, w, h);
+
+      const name = b.name;
+      if (name === "Space")        drawSpacePixelTexture(octx, 0, 0, w, h, variant, !!plat.isFloor, seedX);
+      else if (name === "Forest")  drawForestPixelTexture(octx, 0, 0, w, h, variant, !!plat.isFloor, seedX);
+      else if (name === "Dungeon") drawDungeonPixelTexture(octx, 0, 0, w, h, variant, !!plat.isFloor, seedX);
+      else if (name === "Volcano") drawVolcanoPixelTexture(octx, 0, 0, w, h, variant, !!plat.isFloor, seedX);
+
+      octx.fillStyle = "rgba(255,255,255,0.13)";
+      octx.fillRect(0, 0, w, 3);
+
+      if (plat.moving) {
+        octx.strokeStyle = "rgba(255,255,255,0.35)";
+        octx.lineWidth = 1;
+        octx.strokeRect(0.5, 0.5, w-1, h-1);
+      }
+
+      plat._tex = off;
+    }
+
+    ctx.drawImage(plat._tex, x, y);
+  }
+}
+
+// ── FOREST biome — 4 platform variants + 1 floor variant ─────────────────
+// Palette: bark browns, moss greens, warm wood tones.
+function drawForestPixelTexture(gctx, x, y, w, h, variant, isFloor, seedX) {
+  const PX = 4;
+  const bark1 = "#3f2a1a", bark2 = "#4d3320";
+  const wood1 = "#6b4423", wood2 = "#7a4f2a";
+  const moss  = "#4d7c2a", mossLt = "#6ba83a";
+  const dark  = "#241608";
+  const grain = "#2e1c0d";
+
+  drawPixelGrid(gctx, x, y, w, h, PX, (c, r, cx, cy) => {
+    const gx = seedX + c;
+
+    if (isFloor) {
+      // Packed earth/root floor: dark soil rows with root veins and moss tufts
+      const soilRow = r % 4;
+      if (soilRow === 0) return (pixInt(gx,r,2,0,6)===0) ? moss : dark;
+      if (pixInt(gx, r, 5, 0, 14) === 0) return "#5a3b1f"; // root fleck
+      return (Math.floor(gx/3)+r) % 2 === 0 ? bark1 : bark2;
+    }
+
+    const isEdge = c===0 || r===0 || c===Math.ceil(w/PX)-1 || r===Math.ceil(h/PX)-1;
+
+    if (variant === 0) {
+      // Plank walkway — horizontal wood planks with dark seams
+      if (r % 4 === 0) return dark;
+      if (isEdge) return grain;
+      return (Math.floor(gx/7)) % 2 === 0 ? wood1 : wood2;
+    }
+
+    if (variant === 1) {
+      // Mossy log — rounded bark texture with patches of moss on top
+      if (isEdge) return bark1;
+      if (r <= 1 && pixInt(gx, r, 4, 0, 3) === 0) return mossLt;
+      if (r <= 1 && pixInt(gx, r, 4, 0, 3) === 1) return moss;
+      const ring = Math.floor((gx + r*2) / 4) % 2;
+      return ring === 0 ? bark1 : bark2;
+    }
+
+    if (variant === 2) {
+      // Vine-wrapped platform — diagonal green vine stripes over bark
+      if (isEdge) return dark;
+      const diag = (gx + r) % 7;
+      if (diag === 0 || diag === 1) return moss;
+      return (Math.floor(gx/5)+r) % 2 === 0 ? bark1 : bark2;
+    }
+
+    // variant === 3: Weathered/cracked wood — knots and splits
+    if (isEdge) return grain;
+    const n = pixHash(gx, r, 13);
+    if (n < 0.05) return dark;       // crack
+    if (n < 0.09) return "#8a5a30";  // lighter splinter
+    return (Math.floor(gx/6)+Math.floor(r/2)) % 2 === 0 ? wood1 : wood2;
+  });
+}
+
+// ── DUNGEON biome — 4 platform variants + 1 floor variant ────────────────
+// Palette: cold grey stone, moss stains, iron accents.
+function drawDungeonPixelTexture(gctx, x, y, w, h, variant, isFloor, seedX) {
+  const PX = 4;
+  const stone1 = "#5b5852", stone2 = "#4a4842";
+  const mortar = "#2a2824";
+  const dark   = "#1a1815";
+  const mossS  = "#4a5a38";
+  const iron   = "#6b6560";
+  const rust   = "#7a4a2a";
+
+  drawPixelGrid(gctx, x, y, w, h, PX, (c, r, cx, cy) => {
+    const gx = seedX + c;
+
+    if (isFloor) {
+      // Flagstone floor: large stone slabs with mortar grid and moss stains
+      const slabC = Math.floor(gx/8), slabR = Math.floor(r/6);
+      const onSeam = (gx % 8 === 0) || (r % 6 === 0);
+      if (onSeam) return mortar;
+      if (pixInt(gx, r, 9, 0, 20) === 0) return mossS;
+      return (slabC+slabR) % 2 === 0 ? stone1 : stone2;
+    }
+
+    const isEdge = c===0 || r===0 || c===Math.ceil(w/PX)-1 || r===Math.ceil(h/PX)-1;
+
+    if (variant === 0) {
+      // Brick blocks — classic staggered stonework
+      const blockRow = Math.floor(r/2);
+      const stagger = (blockRow % 2) * 3;
+      const onSeam = ((gx+stagger) % 6 === 0) || (r % 2 === 0);
+      if (onSeam) return mortar;
+      if (isEdge) return dark;
+      return (Math.floor((gx+stagger)/6)+blockRow) % 2 === 0 ? stone1 : stone2;
+    }
+
+    if (variant === 1) {
+      // Iron-banded stone — horizontal iron reinforcement strips
+      if (isEdge) return dark;
+      if (r === 1 || r === Math.ceil(h/PX)-2) return iron;
+      if ((r===1||r===Math.ceil(h/PX)-2) && gx%5===0) return "#8a8478"; // rivet
+      return (Math.floor(gx/6)+r) % 2 === 0 ? stone1 : stone2;
+    }
+
+    if (variant === 2) {
+      // Rusted grate — rust streaks running down over stone
+      if (isEdge) return dark;
+      const streak = (gx % 5 === 0 || gx % 5 === 1);
+      if (streak && pixHash(gx,r,17) < 0.6) return rust;
+      return (Math.floor(gx/5)+r) % 2 === 0 ? stone1 : stone2;
+    }
+
+    // variant === 3: Cracked ancient stone — deep fissures + moss growth
+    if (isEdge) return dark;
+    const n = pixHash(gx, r, 19);
+    if (n < 0.05) return dark;
+    if (n < 0.11) return mossS;
+    return (Math.floor(gx/7)+Math.floor(r/2)) % 2 === 0 ? stone1 : stone2;
+  });
+}
+
+// ── VOLCANO biome — 4 platform variants + 1 floor variant ────────────────
+// Palette: charred basalt, glowing embers, molten cracks.
+function drawVolcanoPixelTexture(gctx, x, y, w, h, variant, isFloor, seedX) {
+  const PX = 4;
+  const rock1 = "#3a2318", rock2 = "#2e1b12";
+  const dark  = "#160d08";
+  const lava  = "#ff6a1a", lavaLt = "#ffb347";
+  const ash   = "#4a3428";
+
+  drawPixelGrid(gctx, x, y, w, h, PX, (c, r, cx, cy) => {
+    const gx = seedX + c;
+
+    if (isFloor) {
+      // Cracked basalt floor: dark rock with glowing lava seams beneath
+      const onSeam = (r === 1) && (pixInt(gx,1,21,0,5)===0);
+      if (onSeam) return lava;
+      if (r === 0) return dark;
+      return (Math.floor(gx/4)+r) % 2 === 0 ? rock1 : rock2;
+    }
+
+    const isEdge = c===0 || r===0 || c===Math.ceil(w/PX)-1 || r===Math.ceil(h/PX)-1;
+
+    if (variant === 0) {
+      // Basalt columns — vertical hexagon-like column seams
+      if (isEdge) return dark;
+      if (gx % 5 === 0) return dark;
+      return (Math.floor(gx/5)+r) % 2 === 0 ? rock1 : rock2;
+    }
+
+    if (variant === 1) {
+      // Glowing fissure — bright lava crack running diagonally
+      if (isEdge) return dark;
+      const diag = Math.abs((gx - r*1.3) % 9);
+      if (diag < 1) return lava;
+      if (diag < 2) return lavaLt;
+      return (Math.floor(gx/6)+r) % 2 === 0 ? rock1 : rock2;
+    }
+
+    if (variant === 2) {
+      // Ash-covered rock — speckled grey ash dusting over dark basalt
+      if (isEdge) return dark;
+      if (pixInt(gx, r, 23, 0, 5) === 0) return ash;
+      return (Math.floor(gx/5)+r) % 2 === 0 ? rock1 : rock2;
+    }
+
+    // variant === 3: Molten pockets — scattered glowing embers in rock
+    if (isEdge) return dark;
+    const n = pixHash(gx, r, 29);
+    if (n < 0.045) return lava;
+    if (n < 0.07) return lavaLt;
+    return (Math.floor(gx/6)+Math.floor(r/2)) % 2 === 0 ? rock1 : rock2;
+  });
 }
 
 // Persistent ambient particles for wind zones — drift continuously and
@@ -2224,4 +2398,3 @@ requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
-
